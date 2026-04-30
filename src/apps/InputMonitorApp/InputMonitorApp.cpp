@@ -1,103 +1,183 @@
 /**
- * Project: Arcade Controller V0.1
+ * Project: Arcade Controller V0.2
  * File: InputMonitorApp.cpp
- * Description: Implementation of the input visualizer.
+ * Description: Implementation of the input monitor UI and logic.
  */
 
 #include "InputMonitorApp.h"
-// Here we include the full controller definition to access hardware methods
-#include "../../ArcadeController.h" 
+#include "../../ArcadeController.h"
+
+InputMonitorApp::InputMonitorApp(ArcadeController* ctrl) : App(ctrl) {}
 
 void InputMonitorApp::start() {
-    Serial.println("[App] InputMonitor started");
+    auto gfx = system->getDisplay()->getGfx();
+    gfx->fillScreen(0x0000);
+    
+    // --- Static text for exit combo (like in the Bluetooth App) ---
+    gfx->setTextSize(1);
+    gfx->setTextColor(0xF800); // Red
+    gfx->drawString("[SELECT] + [L2] + [R2]", 10, 112); 
+
+    lastState = 0xFFFF; // Forces a full redraw on first update
 }
 
-void InputMonitorApp::update() {
-    static int heartbeat = 0;
-    heartbeat++;
-
-    // Get access to hardware subsystems
-    U8G2* gfx = system->getDisplay()->getGfx();
-    InputHandler* input = system->getInput(); 
-    
-    // 1. Draw Header
-    system->getDisplay()->drawHeader("INPUT CHECK", system->getPower()->getBatteryPercentage(), system->getPower()->isUSBConnected());
-
-    // 2. Draw Buttons (Visual Layout)
-    
-    // Select & Start (Top Left)
-    drawBtn(gfx, 15, 25, 4, "St",  input->isPressed(ControlEvent::BTN_START));
-    drawBtn(gfx, 35, 25, 4, "S",   input->isPressed(ControlEvent::BTN_SELECT));
-
-    // Joystick (Visual Cross)
-    int joyX = 25, joyY = 48, r = 5;
-    drawBtn(gfx, joyX, joyY - 8, r, "U", input->isPressed(ControlEvent::JOY_UP));
-    drawBtn(gfx, joyX, joyY + 8, r, "D", input->isPressed(ControlEvent::JOY_DOWN));
-    drawBtn(gfx, joyX - 8, joyY, r, "L", input->isPressed(ControlEvent::JOY_LEFT));
-    drawBtn(gfx, joyX + 8, joyY, r, "R", input->isPressed(ControlEvent::JOY_RIGHT));
-
-    // Arcade Buttons (2x4 Grid)
-    int gridX = 60;
-    int rowTop = 28; // L/R Row
-    int rowBot = 48; // A/B/X/Y Row
-    int sp = 17;     // Spacing
-    int rb = 7;      // Radius (Big buttons)
-
-    // Top Row: L2 L1 R1 R2
-    drawBtn(gfx, gridX + 0*sp, rowTop, rb, "L2", input->isPressed(ControlEvent::BTN_L2));
-    drawBtn(gfx, gridX + 1*sp, rowTop, rb, "L1", input->isPressed(ControlEvent::BTN_L1));
-    drawBtn(gfx, gridX + 2*sp, rowTop, rb, "R1", input->isPressed(ControlEvent::BTN_R1));
-    drawBtn(gfx, gridX + 3*sp, rowTop, rb, "R2", input->isPressed(ControlEvent::BTN_R2));
-
-    // Bottom Row: A B X Y
-    drawBtn(gfx, gridX + 0*sp, rowBot, rb, "A", input->isPressed(ControlEvent::BTN_A));
-    drawBtn(gfx, gridX + 1*sp, rowBot, rb, "B", input->isPressed(ControlEvent::BTN_B));
-    drawBtn(gfx, gridX + 2*sp, rowBot, rb, "X", input->isPressed(ControlEvent::BTN_X));
-    drawBtn(gfx, gridX + 3*sp, rowBot, rb, "Y", input->isPressed(ControlEvent::BTN_Y));
-
-    // 3. Draw Frame Counter (to check for I2C lag)
-    gfx->setDrawColor(1);
-    gfx->setFont(u8g2_font_6x10_tr);
-    gfx->setCursor(0, 60);
-    gfx->print("FPS: ");
-    gfx->print(heartbeat);
+void InputMonitorApp::stop() {
+    // Ensure the progress bar is cleared when exiting the app
+    system->getDisplay()->clearProgressBar();
 }
 
 void InputMonitorApp::onInput(ControlEvent ev, EventType type) {
-    // Debugging logic stays in Serial Monitor
-    if(type == EventType::RELEASED) {
-        InputHandler* input = system->getInput();
-        unsigned long duration = input->getLastPressDuration(ev);
+    // Inputs are handled directly via polling in update() for minimal latency
+}
+
+void InputMonitorApp::update() {
+    system->getDisplay()->drawHeader("INPUT MONITOR");
+
+    auto gfx = system->getDisplay()->getGfx();
+    auto input = system->getInput();
+
+    // Bit-packer: Write all current inputs into a single register
+    uint16_t currentState = 0;
+    if (input->isPressed(ControlEvent::JOY_UP))    currentState |= (1 << 0);
+    if (input->isPressed(ControlEvent::JOY_DOWN))  currentState |= (1 << 1);
+    if (input->isPressed(ControlEvent::JOY_LEFT))  currentState |= (1 << 2);
+    if (input->isPressed(ControlEvent::JOY_RIGHT)) currentState |= (1 << 3);
+    if (input->isPressed(ControlEvent::BTN_A))     currentState |= (1 << 4);
+    if (input->isPressed(ControlEvent::BTN_B))     currentState |= (1 << 5);
+    if (input->isPressed(ControlEvent::BTN_X))     currentState |= (1 << 6);
+    if (input->isPressed(ControlEvent::BTN_Y))     currentState |= (1 << 7);
+    if (input->isPressed(ControlEvent::BTN_L2))    currentState |= (1 << 8);
+    if (input->isPressed(ControlEvent::BTN_L1))    currentState |= (1 << 9);
+    if (input->isPressed(ControlEvent::BTN_R1))    currentState |= (1 << 10);
+    if (input->isPressed(ControlEvent::BTN_R2))    currentState |= (1 << 11);
+    if (input->isPressed(ControlEvent::BTN_START)) currentState |= (1 << 12);
+    if (input->isPressed(ControlEvent::BTN_SELECT))currentState |= (1 << 13);
+
+    // Pure calculation: no RAM access, only internal CPU registers and ALU
+    uint16_t changed = currentState ^ lastState;    
+
+    if (changed != 0) {
+        unsigned long startTime = millis();
+
+        // Efficient bit query for graphic updates
+        if (changed & 0x000F) { // Joystick-Bits 0-3
+            drawJoystick(gfx, 35, 80, (currentState & (1<<0)), (currentState & (1<<1)), 
+                                      (currentState & (1<<2)), (currentState & (1<<3)));
+        }
+
+        // Arcade Buttons (A, B, X, Y)
+        if (changed & (1<<4)) drawArcadeBtn(gfx, 75, 85, 9, 0xF800, (currentState & (1<<4)));
+        if (changed & (1<<5)) drawArcadeBtn(gfx, 97, 73, 9, 0xFFE0, (currentState & (1<<5)));
+        if (changed & (1<<6)) drawArcadeBtn(gfx, 121, 73, 9, 0x07E0, (currentState & (1<<6)));
+        if (changed & (1<<7)) drawArcadeBtn(gfx, 143, 85, 9, 0x07FF, (currentState & (1<<7)));
+
+        // System Buttons (L, R)
+        if (changed & (1<<8))  drawArcadeBtn(gfx, 75, 60, 8, 0x0000, (currentState & (1<<8)));
+        if (changed & (1<<9))  drawArcadeBtn(gfx, 97, 48, 8, 0x0000, (currentState & (1<<9)));
+        if (changed & (1<<10)) drawArcadeBtn(gfx, 121, 48, 8, 0x0000, (currentState & (1<<10)));
+        if (changed & (1<<11)) drawArcadeBtn(gfx, 143, 60, 8, 0x0000, (currentState & (1<<11)));
+
+        // Start & Select
+        if (changed & (1<<12)) drawArcadeBtn(gfx, 15, 40, 5, 0x0000, (currentState & (1<<12)));
+        if (changed & (1<<13)) drawArcadeBtn(gfx, 30, 40, 5, 0x0000, (currentState & (1<<13)));
+
+        lastState = currentState;
         
-        Serial.printf("[Input] %s RELEASED (Held for %lu ms)\n", eventToString(ev), duration);
+        // Performance measurement
+        gfx->setTextColor(0x07E0, 0x0000);
+        gfx->setCursor(2, 16);
+        gfx->printf("LATENCY: %lu ms ", millis() - startTime);
+    }
+
+    // --- EXIT LOGIC: SELECT + L2 + R2 ---
+    
+    unsigned long durSel = input->getDuration(ControlEvent::BTN_SELECT);
+    unsigned long durL2  = input->getDuration(ControlEvent::BTN_L2);
+    unsigned long durR2  = input->getDuration(ControlEvent::BTN_R2);
+
+    // Combo logic: Only if all three are currently pressed
+    if (durSel > 0 && durL2 > 0 && durR2 > 0) {
         
-        // Optional: Feedback sound
-        // system->getSound()->play(SoundEffect::CLICK);
+        // The "shared" hold time is the minimum duration among the three buttons
+        unsigned long comboTime = min(durSel, min(durL2, durR2));
+
+        // Use the centralized progress bar (drawn in red)
+        system->getDisplay()->drawProgressBar(comboTime, 2000, 0xF800);
+
+        // 2-Second Check
+        if (comboTime >= 2000) {
+            system->getDisplay()->clearProgressBar();
+            system->startApp(system->getMenuApp());
+            return; 
+        }
+    } else {
+        // Clear the bar if any of the three buttons is released
+        system->getDisplay()->clearProgressBar();
     }
 }
 
-// Helper: Draws a filled circle if active, hollow if inactive
-void InputMonitorApp::drawBtn(U8G2* gfx, int x, int y, int r, const char* label, bool active) {
-    // 1. Clear background (Black filled circle)
-    gfx->setDrawColor(0);
-    gfx->drawDisc(x, y, r);
+void InputMonitorApp::drawJoystick(TFT_eSPI* gfx, int baseX, int baseY, bool up, bool down, bool left, bool right) {
+    TFT_eSprite spr = TFT_eSprite(gfx);
+    spr.createSprite(50, 50); 
     
-    // 2. Draw Button State
-    if (active) {
-        gfx->setDrawColor(1);   // White
-        gfx->drawDisc(x, y, r); // Filled
-        gfx->setDrawColor(0);   // Text Black on White
+    int cx = 25; 
+    int cy = 25;
+    
+    spr.fillSprite(0x0000); 
+
+    // Base ring: Black fill, WHITE outline
+    spr.fillCircle(cx, cy, 16, 0x0000); 
+    spr.drawCircle(cx, cy, 16, 0xFFFF); 
+
+    // Knob position
+    int kx = cx;
+    int ky = cy;
+    bool isDiagonal = (up || down) && (left || right);
+    int step = isDiagonal ? 11 : 16;
+    
+    if (up)    ky -= step;
+    if (down)  ky += step;
+    if (left)  kx -= step;
+    if (right) kx += step;
+    
+    bool pressed = (up || down || left || right);
+    
+    // Shaft & Knob: ALWAYS WHITE
+    if (pressed) {
+        spr.drawLine(cx, cy, kx, ky, 0xFFFF); 
+        spr.drawLine(cx-1, cy, kx, ky, 0xFFFF); 
+    }
+    spr.fillCircle(kx, ky, 8, 0xFFFF); 
+
+    spr.pushSprite(baseX - 25, baseY - 25);
+    spr.deleteSprite();
+}
+
+void InputMonitorApp::drawArcadeBtn(TFT_eSPI* gfx, int x, int y, int r, uint16_t color, bool pressed) {
+    TFT_eSprite spr = TFT_eSprite(gfx);
+    int size = (r * 2) + 2; 
+    spr.createSprite(size, size);
+    
+    int cx = size / 2;
+    int cy = size / 2;
+    spr.fillSprite(0x0000); 
+    
+    if (pressed) {
+        // When pressed, all buttons turn white
+        spr.fillCircle(cx, cy, r, 0xFFFF); 
     } else {
-        gfx->setDrawColor(1);     // White
-        gfx->drawCircle(x, y, r); // Outline only
-        // Text White (default)
+        if (color == 0x0000) {
+            // System buttons remain BLACK
+            spr.fillCircle(cx, cy, r, 0x0000);
+        } else {
+            // Colored buttons keep their assigned COLOR
+            spr.fillCircle(cx, cy, r, color);
+        }
     }
     
-    // 3. Draw Label Centered
-    gfx->setFont(u8g2_font_micro_tr); 
-    int w = gfx->getStrWidth(label);
-    gfx->setCursor(x - w / 2, y + 3); 
-    gfx->print(label);
+    // OUTLINE ALWAYS WHITE
+    spr.drawCircle(cx, cy, r, 0xFFFF); 
     
-    gfx->setDrawColor(1); // Reset color for next operations
+    spr.pushSprite(x - cx, y - cy);
+    spr.deleteSprite();
 }

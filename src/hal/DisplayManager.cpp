@@ -1,89 +1,99 @@
 /**
- * Project: Arcade Controller V0.1
+ * Project: Arcade Controller V0.2
  * File: DisplayManager.cpp
- * Description: Implementation of OLED display logic.
+ * Description: Implementation of display routines and UI elements.
  */
 
 #include "DisplayManager.h"
 
-// CRITICAL: 'gfx' must be initialized in the initializer list
-// to properly set rotation (U8G2_R0) and reset pin (U8X8_PIN_NONE)
-// BEFORE the constructor body executes.
-DisplayManager::DisplayManager() : gfx(U8G2_R0, U8X8_PIN_NONE) {
-    // Constructor body remains empty
+DisplayManager::DisplayManager() {
+    // Constructor is empty now. 
+    // The 'screen' object is automatically initialized when DisplayManager is created.
 }
 
-void DisplayManager::init() {
-    // 1. Pre-Check I2C Bus
-    Wire.begin(); // Starts I2C (SDA, SCL)
+void DisplayManager::begin() {
+    Serial.println("[DISPLAY] Init TFT_eSPI...");
     
-    Wire.beginTransmission(0x3C); // 0x3C is standard for SH1106/SSD1306
-    byte error = Wire.endTransmission();
-
-    if (error == 0) {
-        Serial.println("[I2C] Display found at address 0x3C");
-    } else {
-        Serial.print("[I2C] ERROR: No Display found! (Error code: ");
-        Serial.print(error);
-        Serial.println(")");
-        // Error codes: 2=NACK (Not found), 4=Other
-    }
+    // TFT_eSPI initialization
+    screen.begin(); 
     
-    gfx.begin();
+    // Orientation: 3 = Landscape
+    screen.setRotation(3); 
+    
+    // Set initial text color (White) and size
+    screen.setTextSize(1);
+    screen.setTextColor(0xFFFF); 
 }
 
 void DisplayManager::clear() {
-    gfx.clearBuffer();
+    // Fill screen with black
+    screen.fillScreen(0x0000); 
 }
 
-void DisplayManager::show() {
-    gfx.sendBuffer();
-}
+void DisplayManager::drawHeader(const String& title) {
+    screen.setTextColor(0xFFFF, 0x0000); 
+    screen.setTextSize(1);
 
-// --- Header Logic ---
-
-// VARIANT 1: Full System Header
-void DisplayManager::drawHeader(const String& title, int batteryPercent, bool isUsbConnected) {
-    // Bottom line (Y=12)
-    gfx.drawHLine(0, 12, 128); 
-
-    // Title (Left aligned)
-    gfx.setFont(u8g2_font_6x10_tf); 
-    gfx.setCursor(2, 9);
-    gfx.print(title);
-
-    // Battery Icon (Top Right)
-    int battX = 110; int battY = 2; int battW = 14; int battH = 8;
+    screen.setCursor(2, 2);
+    screen.print(title);
     
-    // Battery Body
-    gfx.drawFrame(battX, battY, battW, battH);
-    gfx.drawBox(battX + battW, battY + 2, 2, 4); // Nipple
+    screen.drawFastHLine(0, 12, 160, 0xFFFF); 
 
-    // Content
-    if (isUsbConnected) {
-        // Charging Mode
-        gfx.drawBox(battX + 2, battY + 2, battW - 4, battH - 4);
-        // Small indicator dot next to it
-        gfx.drawDisc(battX - 3, battY + 4, 1); 
-    } else {
-        // Percentage Mode
-        int innerWidth = battW - 2;
-        int fillWidth = (innerWidth * batteryPercent) / 100;
-        if (fillWidth > 0) gfx.drawBox(battX + 1, battY + 1, fillWidth, battH - 2);
+    int bx = 135; 
+    int by = 2;
+    int bw = 20;
+    int bh = 8;
+
+    // Draw battery outline
+    screen.drawRect(bx, by, bw, bh, 0xFFFF); 
+    screen.drawFastVLine(bx + bw, by + 2, 4, 0xFFFF); 
+
+    int maxWidth = bw - 2;
+    int fillWidth = map(_currentBattery, 0, 100, 0, maxWidth);
+    
+    // Red color if battery is critical (<= 20%), green otherwise
+    uint16_t color = (_currentBattery > 20) ? 0x07E0 : 0xF800;
+
+    // Draw filled battery level
+    if (fillWidth > 0) {
+        screen.fillRect(bx + 1, by + 1, fillWidth, bh - 2, color);
+    }
+
+    // Clear the remaining empty space inside the battery
+    if (fillWidth < maxWidth) {
+        screen.fillRect(bx + 1 + fillWidth, by + 1, maxWidth - fillWidth, bh - 2, 0x0000);
     }
 }
 
-// VARIANT 2: Minimal Header
-void DisplayManager::drawHeader(const String& title) {
-    // Bottom line
-    gfx.drawHLine(0, 12, 128); 
+void DisplayManager::setBrightness(uint8_t level) {
+    if (level > 100) level = 100;
+    
+    // Store current brightness level for later reference
+    _currentBrightness = level; 
+    
+    // Map 0-100% to 0-255 for the PWM signal
+    int dutyCycle = map(level, 0, 100, 0, 255);
+    analogWrite(PinConfig::DISP_BLK, dutyCycle);
+}
 
-    // Title (Centered)
-    gfx.setFont(u8g2_font_6x10_tf); 
+void DisplayManager::setBatteryLevel(int level) {
+    _currentBattery = level; 
+}
+
+void DisplayManager::drawProgressBar(unsigned long current, unsigned long maxVal, uint16_t color) {
+    if (maxVal == 0) return;
+    if (current > maxVal) current = maxVal;
     
-    int w = gfx.getStrWidth(title.c_str());
-    int x = (128 - w) / 2; // Centering formula
+    // Calculate bar width (max 160 pixels wide)
+    int barWidth = (current * 160) / maxVal;
     
-    gfx.setCursor(x, 9);
-    gfx.print(title);
+    // Draw only if width is greater than 0
+    if (barWidth > 0) {
+        screen.fillRect(0, 126, barWidth, 2, color);
+    }
+}
+
+void DisplayManager::clearProgressBar() {
+    // Overwrite the entire bottom progress bar area with black
+    screen.fillRect(0, 126, 160, 2, 0x0000);
 }

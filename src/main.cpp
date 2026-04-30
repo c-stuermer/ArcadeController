@@ -1,8 +1,7 @@
 /**
- * Project: Arcade Controller V0.1
+ * Project: Arcade Controller V0.2
  * File: main.cpp
  * Description: Entry point for the firmware.
- * Note: This version uses an I2C display which limits the loop time to ~38ms.
  */
 
 #include <ArcadeController.h>
@@ -11,11 +10,11 @@
 ArcadeController arcade;
 
 void setup() {
-    // Initialize the controller and hardware
+    // Initialize the main controller and all underlying hardware/software layers
     arcade.begin();
 }
 
 void loop() {
-    // Main loop delegates all logic to the controller
+    // The main loop delegates all continuous logic to the controller
     arcade.update();
 }

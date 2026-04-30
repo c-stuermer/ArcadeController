@@ -1,35 +1,55 @@
 /**
- * Project: Arcade Controller V0.1
+ * Project: Arcade Controller V0.2
  * File: DisplayManager.h
- * Description: Wrapper for U8g2 library to handle OLED output.
+ * Description: Hardware abstraction for the TFT display using the high-speed TFT_eSPI library.
  */
 
 #pragma once
 #include <Arduino.h>
-#include <U8g2lib.h>
-#include <Wire.h>
+#include <TFT_eSPI.h> 
 #include "../config/Config.h"
 
 class DisplayManager {
 private:
-    // U8g2 instance for SH1106 I2C 128x64 Display
-    U8G2_SH1106_128X64_NONAME_F_HW_I2C gfx;
+    // The TFT_eSPI object is now instantiated directly (stack/member allocation).
+    // Pins and chip config are automatically pulled from the library's User_Setup.h
+    TFT_eSPI screen;
+
+    uint8_t _currentBrightness = 100;
+    int _currentBattery = 0;
 
 public:
     DisplayManager();
+    // Destructor removed: no dynamic memory allocation needs to be cleaned up anymore.
 
-    void init();
-    void clear(); 
-    void show(); 
+    // Initializes the display hardware
+    void begin();
     
-    // Access to raw U8g2 object if needed
-    U8G2* getGfx() { return &gfx; }
+    // Clears the entire screen (fills with black)
+    void clear(); 
+    
+    // Returns the raw TFT_eSPI pointer for advanced drawing operations
+    TFT_eSPI* getGfx() { return &screen; }
 
-    // --- Header Variants ---
+    // --- UI Elements ---
+    
+    // Draws the top status bar including the title and battery indicator
+    void drawHeader(const String& title);
+    
+    // Draws a progress bar at the bottom of the screen
+    void drawProgressBar(unsigned long current, unsigned long maxVal, uint16_t color = 0xFFFF);
+    
+    // Clears the progress bar area
+    void clearProgressBar();
 
-    // 1. Full System Header (Title + Battery Icon + Line)
-    void drawHeader(const String& title, int batteryPercent, bool isUsbConnected);
-
-    // 2. Minimal Header (Centered Title + Line)
-    void drawHeader(const String& title); 
+    // --- State Setters & Getters ---
+    
+    // Sets the backlight brightness (0-100)
+    void setBrightness(uint8_t level); 
+    
+    // Updates the internal battery state used by the UI elements
+    void setBatteryLevel(int level);
+    
+    // Returns the current brightness level
+    uint8_t getBrightness() const { return _currentBrightness; }
 };

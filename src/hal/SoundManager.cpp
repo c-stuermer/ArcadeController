@@ -1,34 +1,63 @@
 /**
- * Project: Arcade Controller V0.1
+ * Project: Arcade Controller V0.2
  * File: SoundManager.cpp
- * Description: Implementation of non-blocking sound synthesis.
+ * Description: Implementation of audio effect synthesis.
  */
 
 #include "SoundManager.h"
 
-SoundManager::SoundManager(uint8_t dacPin) 
-    : _dacPin(dacPin), _enabled(false), _volume(200), _currentEffect(SoundEffect::NONE) {}
+SoundManager::SoundManager(uint8_t pin, uint8_t channel) 
+    : _pin(pin), _channel(channel), _currentEffect(SoundEffect::NONE), _volume(1) {}
 
 void SoundManager::begin() {
-    // DAC pin does not need pinMode, dacWrite handles it
-    _enabled = true;
-    // Prevent "popping" noise at startup
-    dacWrite(_dacPin, 0);
+    // Initialize the ESP32 PWM channel (LEDC)
+    ledcSetup(_channel, 2000, 8); 
+    ledcAttachPin(_pin, _channel);
+    stop();
 }
 
 void SoundManager::play(SoundEffect effect) {
-    if (!_enabled) return;
+    // Mute check
+    if (_volume == 0) { return; }
+
     _currentEffect = effect;
-    _step = 0;
     _startTime = millis();
+
+    // Special case for CLICK: handle immediately without needing ongoing update()
+    if (effect == SoundEffect::CLICK) {
+        ledcWriteTone(_channel, 2500);
+        delay(15); // 15ms is perfectly sufficient for a clean, crisp "tick"
+        ledcWriteTone(_channel, 0); // Turn off immediately
+        _currentEffect = SoundEffect::NONE;
+        return; // We are done, update() doesn't need to process the click anymore
+    }
+
+    // Set duration for continuous effects
+    switch (effect) {
+        case SoundEffect::LASER:     _duration = 300;  break;
+        case SoundEffect::STARTUP:   _duration = 600;  break;
+        case SoundEffect::EXPLOSION: _duration = 400;  break;
+        default:                     _duration = 0;    break;
+    }
+}
+
+void SoundManager::stop() {
+    ledcWriteTone(_channel, 0); // Stops the oscillation immediately
+    _currentEffect = SoundEffect::NONE;
 }
 
 void SoundManager::update() {
     if (_currentEffect == SoundEffect::NONE) return;
 
-    // Use micros() for better audio resolution
-    unsigned long now = micros();
+    unsigned long elapsed = millis() - _startTime;
 
+    // End the effect if the duration has expired
+    if (elapsed > _duration) {
+        stop();
+        return;
+    }
+
+    // Synthesize sound based on elapsed time
     switch (_currentEffect) {
         case SoundEffect::LASER:     updateLaser(); break;
         case SoundEffect::CLICK:     updateClick(); break;
@@ -38,66 +67,25 @@ void SoundManager::update() {
     }
 }
 
-// --- Sound Generators (Non-Blocking) ---
-
 void SoundManager::updateLaser() {
-    // Simulates a sawtooth wave falling in frequency
-    // _step counts up (Time)
-    
-    _step++;
-    // Speed of pitch decay
-    int pitch = 100 + (_step / 20); 
-    
-    if (_step > 4000) { // Duration approx 200ms (dependent on loop speed)
-        _currentEffect = SoundEffect::NONE;
-        dacWrite(_dacPin, 0);
-        return;
-    }
-
-    // Sawtooth Waveform: (Time % Period) * Volume
-    uint8_t val = (_step % pitch) * (_volume / (float)pitch);
-    dacWrite(_dacPin, val);
+    // Falling frequency: from 3000Hz down to 500Hz
+    int freq = map(millis() - _startTime, 0, _duration, 3000, 500);
+    ledcWriteTone(_channel, freq);
 }
 
 void SoundManager::updateClick() {
-    _step++;
-    if (_step > 200) { 
-        _currentEffect = SoundEffect::NONE;
-        dacWrite(_dacPin, 0);
-        return;
-    }
-    // Simple square wave impulse
-    dacWrite(_dacPin, (_step < 100) ? _volume : 0);
+    // Short, high-frequency pulse (mostly handled in play() already)
+    ledcWriteTone(_channel, 2500);
 }
 
 void SoundManager::updateStartup() {
-    _step++;
-    // Frequency rises (Pitch value gets smaller)
-    int pitch = 80 - (_step / 100); 
-    if (pitch < 10) pitch = 10;
-
-    if (_step > 5000) {
-        _currentEffect = SoundEffect::NONE;
-        dacWrite(_dacPin, 0);
-        return;
-    }
-    
-    // Square wave with rising frequency
-    uint8_t val = ((_step / pitch) % 2) == 0 ? _volume : 0;
-    dacWrite(_dacPin, val);
+    // Rising frequency (Retro coin/1-up sound)
+    unsigned long elapsed = millis() - _startTime;
+    int freq = (elapsed < _duration / 2) ? 1200 : 2400;
+    ledcWriteTone(_channel, freq);
 }
 
 void SoundManager::updateExplosion() {
-    _step++;
-    if (_step > 3000) {
-        _currentEffect = SoundEffect::NONE;
-        dacWrite(_dacPin, 0);
-        return;
-    }
-    
-    // Pseudo-Random Noise
-    // Amplitude decreases towards the end (Fade out)
-    float fade = 1.0 - ((float)_step / 3000.0);
-    uint8_t val = random(0, _volume * fade);
-    dacWrite(_dacPin, val);
+    // Simulate noise with random low frequencies
+    ledcWriteTone(_channel, random(50, 400));
 }

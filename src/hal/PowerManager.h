@@ -1,7 +1,7 @@
 /**
- * Project: Arcade Controller V0.1
+ * Project: Arcade Controller V0.2
  * File: PowerManager.h
- * Description: Manages battery monitoring, power switching, and sleep modes.
+ * Description: Manages battery monitoring, sleep modes, and pin states (Hardware Logic).
  */
 
 #pragma once
@@ -10,49 +10,46 @@
 
 class PowerManager {
 public:
-    PowerManager();
+    PowerManager(); 
 
-    void init();
+    void begin();
     void update();
 
     // --- Getters ---
     float getBatteryVoltage() const { return batteryVoltage; }
     int getBatteryPercentage() const { return batteryPercentage; }
     
-    // --- Status ---
-    // Returns true if voltage indicates charging (> 4.2V)
-    bool isUSBConnected();  
-    
-    // Checks physical switch state (LOW = ON)
+    // --- Status --- 
     bool isSwitchedOn();
 
     // --- Actions ---
     void enterDeepSleep();
     void setSystemLedState(bool on);
 
-    // --- Peripheral Control (OLED & MCP) ---
-    void turnOnPeripherals();
+private: 
+    // --- Internal Helpers ---
     void turnOffPeripherals();
+    float readBatteryVoltage();
+    int calcBatteryPercentage(float volts);
 
-private:
-    // Configuration from PinConfig
-    const int batteryPin   = PinConfig::BATTERY_AD;
+private: 
+    // --- Config & Pins ---
+    const int batteryPin   = PinConfig::BATTERY_AD.pin;
     const int switchPwrPin = PinConfig::POWER.pin;
     const int systemLedPin = PinConfig::SYSTEM_LED.pin;
-    const int I2cVccPin    = PinConfig::I2C_VCC;
+    
+    // Display Power Control Pins
+    const int backlightPin = PinConfig::DISP_BLK; 
+    const int displayRstPin = PinConfig::DISP_RST; 
 
-    // Battery State
+    // --- Battery State ---
     float batteryVoltage = 0.0;
     int batteryPercentage = 0;
     unsigned long lastBatteryUpdate = 0;
     const unsigned long batteryUpdateInterval = 1000;
 
-    // ADC Smoothing (Circular Buffer)
+    // --- ADC Smoothing ---
     static const int SAMPLES = 10;
     int adcBuffer[SAMPLES];
     int bufferIndex = 0;
-
-    // Helpers
-    float readBatteryVoltage();
-    int calcBatteryPercentage(float volts);
 };

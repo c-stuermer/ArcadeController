@@ -1,37 +1,95 @@
 /**
- * Project: Arcade Controller V0.1
+ * Project: Arcade Controller V0.2
  * File: PowerManager.cpp
- * Description: Implementation of power management logic and ADC smoothing.
+ * Description: Handles power management and ghost-glow prevention during deep sleep.
  */
 
 #include "PowerManager.h"
+#include "driver/rtc_io.h" // REQUIRED for gpio_hold functions
 
 PowerManager::PowerManager() {
-    // Initialize buffer with zeros
-    for(int i=0; i<SAMPLES; i++) adcBuffer[i] = 0;
+    for(int i = 0; i < SAMPLES; i++) adcBuffer[i] = 0;
 }
 
-void PowerManager::init() {
+void PowerManager::begin() {
+    Serial.println("[POWER] Begin");
+    // 1. IMPORTANT: Release the "Hold"!
+    // When waking up from deep sleep, backlight and reset pins are frozen.
+    // We must release them before they can be assigned to new functions.
+    gpio_hold_dis((gpio_num_t)backlightPin);
+    gpio_hold_dis((gpio_num_t)displayRstPin);
+
+    // 2. Configure standard pins
     pinMode(systemLedPin, OUTPUT);
-    pinMode(I2cVccPin, OUTPUT);
     pinMode(switchPwrPin, INPUT_PULLUP);
     pinMode(batteryPin, INPUT);
+    
+    // Take over display pins for power management
+    pinMode(backlightPin, OUTPUT);
+    pinMode(displayRstPin, OUTPUT);
 
-    turnOnPeripherals();
+    // 3. Set initial states
     setSystemLedState(true); 
 
-    // Initial buffer filling to prevent 0V readings at start
-    for(int i=0; i<SAMPLES; i++) {
+    // 4. Initial battery read (fill the smoothing buffer)
+    for(int i = 0; i < SAMPLES; i++) {
         adcBuffer[i] = analogReadMilliVolts(batteryPin);
         delay(2);
     }
-
     batteryVoltage = readBatteryVoltage();
     batteryPercentage = calcBatteryPercentage(batteryVoltage);
 }
 
+void PowerManager::turnOffPeripherals() {
+    // 1. Turn off backlight (remove PWM assignment and pull LOW)
+    gpio_reset_pin((gpio_num_t)backlightPin); 
+    pinMode(backlightPin, OUTPUT);
+    digitalWrite(backlightPin, LOW); 
+    
+    // 2. Hard disable the display controller (hold reset LOW)
+    digitalWrite(displayRstPin, LOW);
+
+    // 3. Make I2C pins high-impedance to prevent current leaks
+    pinMode(PinConfig::I2C_SDA, INPUT);
+    pinMode(PinConfig::I2C_SCL, INPUT);
+    
+    // 4. Make SPI pins high-impedance so the display doesn't drain power
+    pinMode(PinConfig::SPI_MOSI, INPUT); 
+    pinMode(PinConfig::SPI_SCLK, INPUT);
+    pinMode(PinConfig::DISP_CS, INPUT);
+    pinMode(PinConfig::DISP_DC, INPUT);
+    
+    // 5. "GHOST GLOW" FIX: Freeze the current pin states
+    gpio_hold_en((gpio_num_t)backlightPin);
+    gpio_hold_en((gpio_num_t)displayRstPin);
+
+    // Turn off built-in LED and hold its state
+    pinMode(LED_BUILTIN, OUTPUT);
+    digitalWrite(LED_BUILTIN, LOW);
+    gpio_hold_en((gpio_num_t)LED_BUILTIN);
+}
+
+void PowerManager::enterDeepSleep() {
+    Serial.println("[POWER] ENTERING DEEP SLEEP");
+    Serial.flush();
+    
+    setSystemLedState(false);
+    
+    // Shut down peripherals and activate GPIO hold
+    turnOffPeripherals(); 
+    
+    // Tell the ESP32 to keep the hold active during deep sleep
+    gpio_deep_sleep_hold_en(); 
+    
+    // Configure wake-up via the physical power switch
+    esp_sleep_enable_ext0_wakeup((gpio_num_t)switchPwrPin, 0);
+    
+    delay(100);
+    esp_deep_sleep_start();
+}
+
 void PowerManager::update() {
-    // Read battery only at defined intervals (1s)
+    Serial.println("[POWER] update");
     if (millis() - lastBatteryUpdate > batteryUpdateInterval) {
         batteryVoltage = readBatteryVoltage();
         batteryPercentage = calcBatteryPercentage(batteryVoltage);
@@ -40,68 +98,28 @@ void PowerManager::update() {
 }
 
 float PowerManager::readBatteryVoltage() {
-    // Read new value into circular buffer
     adcBuffer[bufferIndex] = analogReadMilliVolts(batteryPin);
     bufferIndex = (bufferIndex + 1) % SAMPLES;
-
-    // Calculate average
+    
     long sum = 0;
-    for(int i=0; i<SAMPLES; i++) sum += adcBuffer[i];
+    for(int i = 0; i < SAMPLES; i++) sum += adcBuffer[i];
+    
     float avgMv = (float)sum / SAMPLES;
-
-    // Calculation: Millivolts -> Volts * Voltage Divider Factor (2.0)
-    return (avgMv * 2.0f) / 1000.0f; 
+    return (avgMv * 2.0f) / 1000.0f; // Adjust based on your voltage divider
 }
 
 int PowerManager::calcBatteryPercentage(float voltage) {
-    // Clamp to logical limits (LiPo specifics)
     if (voltage >= 4.15f) return 100;
     if (voltage <= 3.3f) return 0;
-
-    // Map: 3.3V (0%) to 4.15V (100%)
+    
     long pct = map((long)(voltage * 100), 330, 415, 0, 100);
     return constrain(pct, 0, 100);
-}
-
-bool PowerManager::isUSBConnected() {
-    // Simple heuristic: If voltage is > 4.2V, we are likely charging.
-    return batteryVoltage > 4.20f;
-}
-
-bool PowerManager::isSwitchedOn() {
-    return digitalRead(switchPwrPin) == LOW;
 }
 
 void PowerManager::setSystemLedState(bool on) {
     digitalWrite(systemLedPin, on ? HIGH : LOW);
 }
 
-void PowerManager::turnOnPeripherals() {
-    digitalWrite(I2cVccPin, HIGH);
-    delay(25); // Wait for peripherals to stabilize
-}
-
-void PowerManager::turnOffPeripherals() {
-    // Cut power to Display & MCP Reset
-    digitalWrite(I2cVccPin, LOW);
-    
-    // CRITICAL: Set I2C pins to INPUT.
-    // This prevents parasitic power drain through internal protection diodes
-    // or pull-up resistors while the peripherals are powered down.
-    pinMode(PinConfig::I2C_SDA, INPUT);
-    pinMode(PinConfig::I2C_SCL, INPUT);
-}
-
-void PowerManager::enterDeepSleep() {
-    Serial.println(">>> ENTERING DEEP SLEEP <<<");
-    Serial.flush();
-    
-    setSystemLedState(false);
-    turnOffPeripherals();
-    
-    // Configure wake up source: Physical Switch (LOW level wakeup)
-    esp_sleep_enable_ext0_wakeup((gpio_num_t)switchPwrPin, 0);
-    
-    delay(100);
-    esp_deep_sleep_start();
+bool PowerManager::isSwitchedOn() { 
+    return digitalRead(switchPwrPin) == LOW; 
 }

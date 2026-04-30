@@ -1,71 +1,112 @@
 /**
- * Project: Arcade Controller V0.1
+ * Project: Arcade Controller V0.2
  * File: ArcadeController.cpp
- * Description: Implementation of the main control logic.
  */
 
 #include "ArcadeController.h"
 
 void ArcadeController::begin() {
     Serial.begin(115200);
-    Serial.println("ArcadeController V0.1 (I2C Display Version) starting...");
+    Serial.println("[SYSTEM] ArcadeController V0.2");
 
-    // 1. Initialize Hardware
-    power.init(); 
-    display.init(); 
-    // settings.begin(); // TODO: Add persistent settings storage later
-    
-    // 2. Select and Initialize Gamepad Driver
-    #ifdef USE_REAL_BLUETOOTH
-        gamepadDriver = &realGamepad;
-    #else
-        gamepadDriver = &dummyGamepad;
-        Serial.println("WARNING: Running in SIMULATION mode (DummyGamepad, no Bluetooth)");
-    #endif
+    // Initialize all hardware abstraction layers
+    power.begin(); 
+    display.begin(); 
+    sound.begin();
+    input.begin(); 
+    settings.begin();
+
+    // Initialize the gamepad driver
+    gamepadDriver = &bleGamepadAdapter;
     gamepadDriver->begin();
 
-    // 3. Initialize Input
-    input.init(); 
-
-    // 4. Configure Input Routing
-    // Inputs are routed to the active App via the AppManager
+    // Route all hardware input events to the currently active application
     input.onEvent([this](ControlEvent ev, EventType type) {
         this->appManager.handleInput(ev, type);
     });
 
-    // 5. Initial App Decision based on Power State
-    if (power.isSwitchedOn()) {
-        // Hardware switch is ON -> Start main functionality
-        appManager.startApp(&inputMonitorApp); 
-    } else {
-        // Hardware switch is OFF -> System woke up due to USB/Charging
-        appManager.startApp(&rechargeApp);
-    }
+    // Apply configuration from persistent storage
+    applySavedSettings();
 
-    // 6. Startup Feedback
-    sound.begin();
-    sound.play(SoundEffect::STARTUP);
+    // --- Boot Sequence ---
+    if (power.isSwitchedOn()) {
+        uint8_t bootMode = settings.getBootMode();
+
+        if (bootMode == 0) {
+            // Stealth Mode: Start directly into Bluetooth, disable display and sound
+            Serial.println("[SYSTEM] Booting in Stealth Mode...");
+            display.setBrightness(0);
+            sound.setVolume(0);
+            appManager.startApp(&bluetoothApp); 
+        } else {
+            // Normal Mode: Start into the main menu with startup sound
+            Serial.println("[SYSTEM] Booting in Normal Mode...");
+            appManager.startApp(&menuApp); 
+            sound.play(SoundEffect::LASER);
+        }         
+    }
 }
 
 void ArcadeController::update() {
-    // --- POWER MANAGEMENT HANDLING ---
+    // Periodically sync battery state
+    syncSystemStats();
+    
+    // Poll hardware states
     power.update();
+    input.update();
 
-// Check if the physical power switch is OFF
+    // --- Power Management ---
+    // If the physical power switch is turned off, clear the display 
+    // and enter deep sleep immediately to preserve battery life.
     if (!power.isSwitchedOn()) {
-        // Simplified Logic: 
-        // If switch is OFF, always ensure RechargeApp is running.
-        // We do not check for USB connection for now.
-        if (!appManager.isCurrent(&rechargeApp)) {
-            appManager.startApp(&rechargeApp);
-        }
+        Serial.println("[SYTEM] Switch turned OFF -> Entering Deep Sleep");
+        display.setBrightness(0);
+        display.clear();
+        delay(50);
+        power.enterDeepSleep();
     }
 
-    // --- MAIN LOOP UPDATE ---
-    input.update(gamepadDriver);
+    // Process active application logic and outputs
     appManager.update();
-    sound.update();
+    sound.update();      
+}
+
+// --- Settings Implementation ---
+
+void ArcadeController::applySavedSettings() {
+    uint8_t bright = settings.getBrightness();
+    display.setBrightness(bright);
+
+    uint8_t vol = settings.getVolume();
+    sound.setVolume(vol); 
+}
+
+void ArcadeController::updateSystemBrightness(uint8_t level) {
+    settings.setBrightness(level); 
+    display.setBrightness(level);
+}
+
+void ArcadeController::updateSystemVolume(uint8_t level) {
+    settings.setVolume(level);
+    sound.setVolume(level);
+}
+
+void ArcadeController::updateSystemBootMode(uint8_t mode) {
+    settings.setBootMode(mode); 
+}
+
+void ArcadeController::syncSystemStats() {
+    static uint32_t lastBatteryCheck = 0;
     
-    // Note: I2C Display update might introduce latency (~38ms framerate limit)
-    display.show();
+    // Check battery level every 60 seconds to avoid unnecessary polling overhead
+    if (millis() - lastBatteryCheck > 60000 || lastBatteryCheck == 0) {
+        int battery = power.getBatteryPercentage();
+
+        // Active push principle: distribute the current battery status to UI and Gamepad
+        display.setBatteryLevel(battery);
+        gamepadDriver->setBatteryLevel(battery);
+
+        lastBatteryCheck = millis();
+        Serial.printf("[SYSTEM] Battery Sync: %d%%\n", battery);
+    }
 }

@@ -1,7 +1,7 @@
 /**
- * Project: Arcade Controller V0.1
+ * Project: Arcade Controller V0.2
  * File: InputHandler.h
- * Description: Manages inputs from direct GPIOs and I2C Expander (MCP23017).
+ * Description: Manages inputs from direct GPIOs and the I2C Expander (MCP23017).
  */
 
 #pragma once
@@ -11,10 +11,8 @@
 #include <Adafruit_MCP23X17.h>
 #include <Wire.h>
 
-// IMPORTANT: Config must be included first for ControlEvent enums
 #include "../config/Config.h" 
 #include "../driver/Button.h"
-#include "../transport/IGamepadOutput.h"
 
 struct ArcadeButtonDef {
     HardwarePin hw;
@@ -28,16 +26,21 @@ public:
     using EventCallback = std::function<void(ControlEvent, EventType)>;
 
     InputHandler();
-    void init();
-    void update(IGamepadOutput* gamepad);
     
+    // Initializes the I2C bus and configures pin modes
+    void begin();
+    
+    // Polls the hardware states and triggers events. Must be called in the main loop.
+    void update();
+    
+    // Registers the callback function for input events
     void onEvent(EventCallback cb) { _callback = cb; }
     
-    // State Checks
+    // --- State Checks ---
     bool isPressed(ControlEvent ev); 
     bool isPressed(HardwarePin pinConfig);
 
-    // Duration Checks (e.g., for holding buttons)
+    // --- Duration Checks (e.g., for holding buttons) ---
     unsigned long getDuration(ControlEvent ev);
     unsigned long getLastPressDuration(ControlEvent ev);
 

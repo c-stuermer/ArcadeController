@@ -1,7 +1,8 @@
 /**
- * Project: Arcade Controller V0.1
+ * Project: Arcade Controller V0.2
  * File: AppManager.h
  * Description: Manages the lifecycle and switching of the active application.
+ * Note: Consider letting AppManager own the App instances instead of ArcadeController in the future.
  */
 
 #pragma once
@@ -12,12 +13,12 @@ private:
     App* currentApp = nullptr;
 
 public:
-    // Switches to a new application handling the lifecycle (stop old -> start new)
+    // Switches to a new application, handling the lifecycle (stop old -> start new)
     void startApp(App* newApp) {
         if (currentApp) {
             currentApp->stop();
         }
-        
+
         currentApp = newApp;
         
         if (currentApp) {
@@ -25,12 +26,12 @@ public:
         }
     }
 
-    // Called in the main loop
+    // Called in the main loop to process the active application
     void update() {
         if (currentApp) currentApp->update();
     }
 
-    // Routes input events to the active app
+    // Routes input events to the currently active app
     void handleInput(ControlEvent ev, EventType type) {
         if (currentApp) currentApp->onInput(ev, type);
     }
