@@ -1,7 +1,7 @@
 /**
- * Project: Arcade Controller V0.1
+ * Project: Arcade Controller V0.2
  * File: IGamepadOutput.h
- * Description: Interface for gamepad drivers (Real BLE vs. Dummy/Simulation).
+ * Description: Interface for gamepad drivers (BLE implemented, TODO: Switch 2).
  */
 
 #pragma once
@@ -15,5 +15,14 @@ public:
     virtual void begin() = 0;
     virtual void press(ControlEvent event) = 0;
     virtual void release(ControlEvent event) = 0;
+    
     virtual bool isConnected() = 0;
+    virtual bool isAdvertising() = 0;
+    
+    virtual void disconnect() = 0;
+    virtual void startAdvertising() = 0;
+    virtual void stopAdvertising() = 0;
+    
+    // Updates the battery level sent to the host device
+    virtual void setBatteryLevel(int level) = 0;
 };

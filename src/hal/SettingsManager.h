@@ -1,52 +1,33 @@
 /**
- * Project: Arcade Controller V0.1
+ * Project: Arcade Controller V0.2
  * File: SettingsManager.h
- * Description: Persistent storage wrapper using ESP32 Preferences.
+ * Description: Manages persistent storage of user settings using ESP32 Preferences.
  */
 
 #pragma once
+#include <Arduino.h>
 #include <Preferences.h>
 
 class SettingsManager {
-    private:
-        Preferences prefs;
-    public:
-        void begin() {
-            // "arcade" is the namespace (max 15 chars). 
-            // false = Read/Write mode
-            prefs.begin("arcade", false); 
-        }
+private:
+    Preferences prefs;
+    
+    // Cached values for fast access without flash reads
+    uint8_t _volume;
+    uint8_t _brightness;
+    uint8_t _bootMode;
 
-        // --- VOLUME ---
-        void setVolume(int vol) {
-            // Clamp 0-100
-            if (vol < 0) vol = 0; 
-            if (vol > 100) vol = 100;
-            prefs.putInt("volume", vol); // Saves immediately
-        }
+public:
+    // Initializes the preferences and loads stored values
+    void begin();
 
-        int getVolume() {
-            // 50 is default if key doesn't exist
-            return prefs.getInt("volume", 50); 
-        }
+    // --- Getters ---
+    uint8_t getBootMode() const { return _bootMode; }
+    uint8_t getVolume() const { return _volume; }
+    uint8_t getBrightness() const { return _brightness; }
 
-        // --- BRIGHTNESS ---
-        void setBrightness(int bright) {
-            if (bright < 0) bright = 0;
-            if (bright > 255) bright = 255;
-            prefs.putInt("brightness", bright);
-        }
-
-        int getBrightness() {
-            return prefs.getInt("brightness", 255); // Default: Bright
-        }
-
-        // --- SOUND ENABLED ---
-        void setSoundEnabled(bool enabled) {
-            prefs.putBool("soundOn", enabled);
-        }
-
-        bool isSoundEnabled() {
-            return prefs.getBool("soundOn", true); // Default: On
-        }
+    // --- Setters (Save to Flash) ---
+    void setBootMode(uint8_t mode);
+    void setVolume(uint8_t level);
+    void setBrightness(uint8_t level);
 };

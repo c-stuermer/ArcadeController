@@ -1,5 +1,5 @@
 /**
- * Project: Arcade Controller V0.1
+ * Project: Arcade Controller V0.2
  * File: InputHandler.cpp
  * Description: Implementation of input scanning and debounce logic.
  */
@@ -12,6 +12,7 @@ struct ButtonMapEntry {
 };
 
 static const ButtonMapEntry BUTTON_MAP[] = {
+
     // Arcade Buttons
     { PinConfig::ARCADE_A,      ControlEvent::BTN_A },
     { PinConfig::ARCADE_B,      ControlEvent::BTN_B },
@@ -23,36 +24,40 @@ static const ButtonMapEntry BUTTON_MAP[] = {
     { PinConfig::ARCADE_R2,     ControlEvent::BTN_R2 },
     { PinConfig::ARCADE_SELECT, ControlEvent::BTN_SELECT },
     { PinConfig::ARCADE_START,  ControlEvent::BTN_START },
+    
     // Joystick
     { PinConfig::JOYSTICK_UP,   ControlEvent::JOY_UP },
     { PinConfig::JOYSTICK_DOWN, ControlEvent::JOY_DOWN },
     { PinConfig::JOYSTICK_LEFT, ControlEvent::JOY_LEFT },
     { PinConfig::JOYSTICK_RIGHT,ControlEvent::JOY_RIGHT },
+    
     // System
     { PinConfig::POWER,         ControlEvent::SYS_POWER }
 };
 
 InputHandler::InputHandler() {
+    // Pre-allocate memory for all buttons to avoid reallocation overhead
     buttons.reserve(sizeof(BUTTON_MAP) / sizeof(ButtonMapEntry));
     unsigned long debounceMs = PinConfig::DEFAULT_DEBOUNCE_MS;
 
+    // Initialize all buttons
     for (const auto& entry : BUTTON_MAP) {
         buttons.push_back({ 
-            entry.hw,           // Hardware pin (ESP/MCP)
+            entry.hw,           // Hardware pin (ESP/MCP + Pin)
             Button(debounceMs), // Debounce logic class
             entry.eventId       // Event ID
         });
     }
 }
 
-void InputHandler::init() {
+void InputHandler::begin() {
     Wire.begin(); 
-    Wire.setClock(400000); // Fast I2C
+    Wire.setClock(400000); // Fast I2C Clock
 
-    // Check for MCP23017
+    // Check for MCP23017 on the bus
     Wire.beginTransmission(PinConfig::MCP_ADDRESS);
     if (Wire.endTransmission() == 0) {
-        Serial.printf("[I2C] MCP23017 found at 0x%02X\n", PinConfig::MCP_ADDRESS);
+        Serial.printf("[I2C] MCP23017 connected!");
         mcpConnected = true;
         mcp.begin_I2C(PinConfig::MCP_ADDRESS);
     } else {
@@ -60,58 +65,53 @@ void InputHandler::init() {
         mcpConnected = false;
     }
 
-    // Set pin modes
+    // Set pin modes for all configured buttons
     for (auto &btn : buttons) {
         if (btn.hw.type == PinType::MCP && mcpConnected) {
-            // MCP Pins: Input with internal Pullup
+            // MCP pins: Input with internal pull-up
             mcp.pinMode(btn.hw.pin, INPUT_PULLUP);
         } 
         else if (btn.hw.type == PinType::ESP) {
-            // ESP Pins: Input with internal Pullup
+            // ESP pins: Input with internal pull-up
             pinMode(btn.hw.pin, INPUT_PULLUP);
         }
     }
 }
 
-void InputHandler::update(IGamepadOutput* gamepad) {
-    if (millis() - lastHardwareRead < 10) return; // Polling rate limit
+void InputHandler::update() {
+    // Polling rate limit (1ms) to avoid saturating the I2C bus
+    if (millis() - lastHardwareRead < 1) return; 
     lastHardwareRead = millis();    
 
-    // 1. Hardware Read (Bulk Read for MCP is efficient!)
+    // 1. Hardware Read (Bulk read for the MCP is much more efficient)
     if (mcpConnected) {
         // Invert (~) because INPUT_PULLUP logic is LOW when pressed.
         // Result: 1 = Pressed, 0 = Released.
         mcpState = ~mcp.readGPIOAB(); 
     }
 
-    // Check if we can send BLE events
-    bool bleReady = (gamepad && gamepad->isConnected());
-
-    // 2. Iterate all buttons
+    // 2. Iterate through all configured buttons
     for (auto &btn : buttons) {
         bool isPhysicalPressed = false;
         
         if (btn.hw.type == PinType::MCP && mcpConnected) {
-            // Bitmask check: Is the bit at 'pin' set?
+            // Bitmask check: Is the specific bit at 'pin' set?
             isPhysicalPressed = (mcpState >> btn.hw.pin) & 1;
         } 
         else if (btn.hw.type == PinType::ESP) {
-            // ESP: LOW = Pressed (Pullup logic)
+            // ESP pins: LOW = Pressed (Pull-up logic)
             isPhysicalPressed = (digitalRead(btn.hw.pin) == LOW);
         }
 
-        // 3. Feed debounce logic
+        // 3. Feed the physical reading into the debounce logic
         btn.logic.update(isPhysicalPressed);
 
         // 4. Process Events (Edge Detection)
-        
         if (btn.logic.wasPressed()) {
-            if (bleReady) gamepad->press(btn.eventId);
             if (_callback) _callback(btn.eventId, EventType::PRESSED);
         }
 
         if (btn.logic.wasReleased()) {
-            if (bleReady) gamepad->release(btn.eventId);
             if (_callback) _callback(btn.eventId, EventType::RELEASED);
         }
     }

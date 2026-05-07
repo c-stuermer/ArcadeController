@@ -1,5 +1,5 @@
 /**
- * Project: Arcade Controller V0.1
+ * Project: Arcade Controller V0.2
  * File: ArcadeController.h
  * Description: Main controller class coordinating Hardware (HAL) and Software (Apps).
  */
@@ -8,29 +8,26 @@
 
 #include <Arduino.h>
 
-// HAL (Hardware Abstraction Layer) Includes
+// --- Configuration ---
+#include "config/Config.h"
+
+// --- HAL (Hardware Abstraction Layer) ---
+#include "hal/SettingsManager.h"
 #include "hal/PowerManager.h"
 #include "hal/DisplayManager.h"
 #include "hal/InputHandler.h"
 #include "hal/SoundManager.h"
-#include "config/Config.h"
 
-// App Management
+// --- Transport / Gamepad ---
+#include "transport/IGamepadOutput.h"
+#include "transport/BLEGamepadAdapter.h"
+
+// --- Applications ---
 #include "apps/AppManager.h"
 #include "apps/InputMonitorApp/InputMonitorApp.h"
-#include "apps/RechargeApp/RechargeApp.h"
-//#include "apps/MenuApp/menuApp.h"
-
-// Driver Selection Configuration
-// Uncomment the following line to use real Bluetooth hardware.
-// Comment it out to use the Dummy/Simulation driver (e.g., for debugging without BLE stack).
-// #define USE_REAL_BLUETOOTH 
-
-#ifdef USE_REAL_BLUETOOTH
-    #include "BleGamepadAdapter.h"
-#else
-    #include "transport/DummyGamepad.h"
-#endif
+#include "apps/BluetoothApp/BluetoothApp.h"
+#include "apps/MenuApp/MenuApp.h"
+#include "apps/InfoApp/InfoApp.h"
 
 class ArcadeController {
     private:
@@ -39,40 +36,56 @@ class ArcadeController {
         DisplayManager display;
         InputHandler input;
         SoundManager sound;
+        SettingsManager settings;
         
-        // --- BLE / Gamepad Driver ---
+        // --- Bluetooth / Gamepad Driver ---
         IGamepadOutput* gamepadDriver;
-        
-        #ifdef USE_REAL_BLUETOOTH
-            BleGamepadAdapter realGamepad;
-        #else
-            DummyGamepad dummyGamepad;
-        #endif
+        BleGamepadAdapter bleGamepadAdapter;
 
         // --- Software / App Management ---
         AppManager appManager;
         
-        // App Instances (injected with 'this' controller context)
+        // --- App Instances ---
         InputMonitorApp inputMonitorApp{this};
-        RechargeApp rechargeApp{this};
-        // MenuApp menuApp;
+        BluetoothApp bluetoothApp{this};
+        MenuApp menuApp{this};
+        InfoApp infoApp{this};
 
     public:
+
+        //Initializes all hardware components, loads settings, and boots the system.
         void begin();
+
+        // Main processing loop. Handles hardware updates, power state, and app logic.
         void update();
 
         // --- API for Apps (Getters) ---
-        // Provides apps access to hardware subsystems
         DisplayManager* getDisplay()    { return &display; }
-        PowerManager* getPower()      { return &power; }
-        InputHandler* getInput()      { return &input; }
-        SoundManager* getSound()      { return &sound; }
+        PowerManager* getPower()        { return &power; }
+        InputHandler* getInput()        { return &input; }
+        SoundManager* getSound()        { return &sound; }
         IGamepadOutput* getGamepad()    { return gamepadDriver; }
-        AppManager* getAppManager() { return &appManager; }
+        AppManager* getAppManager()     { return &appManager; }
+        SettingsManager* getSettings()  { return &settings; }
 
-        // Shortcut to switch apps
+        // Shortcut to switch the currently active application.
         void startApp(App* app) { appManager.startApp(app); }
 
-        // Access specific app instances
+        // --- Access Specific App Instances ---
         App* getInputMonitorApp() { return &inputMonitorApp; }
+        App* getBluetoothApp()    { return &bluetoothApp; }
+        App* getMenuApp()         { return &menuApp; }
+        App* getInfoApp()         { return &infoApp; }
+        
+        // --- System Settings Management ---
+        void updateSystemBrightness(uint8_t level);
+        void updateSystemVolume(uint8_t level);
+        void updateSystemBootMode(uint8_t mode);
+        
+        //Applies settings (like brightness and volume) loaded from persistent storage.
+        void applySavedSettings();  
+
+
+        // Synchronizes system statistics (e.g., battery level) across relevant components.
+        void syncSystemStats();
 };

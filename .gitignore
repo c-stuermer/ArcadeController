@@ -1,2 +1,34 @@
-.pio
-.vscode
+# --- PlatformIO ---
+.pio/
+.pioenvs/
+piolibdeps/
+
+# --- VS Code ---
+.vscode/
+*.code-workspace
+
+# --- Arduino ---
+build/
+*.elf
+*.bin
+*.hex
+
+# --- C/C++ Build Artifacts ---
+*.o
+*.obj
+*.out
+*.a
+*.lib
+*.dll
+*.so
+*.exe
+
+# --- OS Generated Files (Windows / macOS / Linux) ---
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini

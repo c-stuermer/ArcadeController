@@ -1,27 +1,26 @@
 /**
- * Project: Arcade Controller V0.1
+ * Project: Arcade Controller V0.2
  * File: InputMonitorApp.h
- * Description: Visualizes gamepad inputs on the OLED display.
+ * Description: Graphical tool to visualize controller inputs and latency.
  */
 
 #pragma once
-#include "../App.h"
-
-// Forward declarations
-class ArcadeController; 
-class U8G2;
+#include <Arduino.h>
+#include <TFT_eSPI.h>
+#include "../../apps/App.h"
 
 class InputMonitorApp : public App {
 public:
-    // Inherit constructor from base class
-    using App::App;
-
-    // Lifecycle methods
+    InputMonitorApp(ArcadeController* ctrl);
     void start() override;
     void update() override;
+    void stop() override;
     void onInput(ControlEvent ev, EventType type) override;
 
 private:
-    // Helper to draw a UI button representation
-    void drawBtn(U8G2* gfx, int x, int y, int r, const char* label, bool active);
+    // 16-bit field: Each bit represents a button (highly performant)
+    uint16_t lastState = 0xFFFF; 
+
+    void drawArcadeBtn(TFT_eSPI* gfx, int x, int y, int r, uint16_t color, bool pressed);
+    void drawJoystick(TFT_eSPI* gfx, int baseX, int baseY, bool up, bool down, bool left, bool right);
 };

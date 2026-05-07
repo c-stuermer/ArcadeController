@@ -1,7 +1,7 @@
 /**
- * Project: Arcade Controller V0.1
+ * Project: Arcade Controller V0.2
  * File: Button.cpp
- * Description: Implementation of debounce logic.
+ * Description: Implementation of eager-press debounce logic.
  */
 
 #include "Button.h"
@@ -14,29 +14,27 @@ void Button::update(bool currentReading) {
     // Save the state from the PREVIOUS frame to detect edges later
     lastDebouncedState = debouncedState; 
 
-    // 1. Debounce Timer Check
-    // If we are within the debounce "dead zone", ignore changes.
-    if ((millis() - lastDebounceTime) < debounceDelay) {
-        return; 
+    // Reset the debounce timer as long as the physical signal is fluctuating
+    if (currentReading != lastRawReading) {
+        lastDebounceTime = millis();
     }
+    lastRawReading = currentReading;
 
-    // 2. State Change Detection
-    // If the timer has expired and the physical reading is different from our stable state:
-    if (currentReading != debouncedState) {
-        lastDebounceTime = millis();    // Reset timer
-        debouncedState = currentReading; // Accept new state immediately
-
-        // --- LOGIC: Button Released ---
-        if (debouncedState == false) {
-            // Calculate and save how long it was held
+    // --- 1. EAGER PRESS (0 ms latency) ---
+    // If the signal is active and we were previously considered 'released':
+    if (currentReading == true && debouncedState == false) {
+        debouncedState = true;           // Fire immediately!
+        pressStartTime = millis();
+        _lastPressDuration = 0; 
+    }
+    // --- 2. DELAYED RELEASE (Stability Check) ---
+    // If the signal is gone, but we are still considered 'pressed':
+    else if (currentReading == false && debouncedState == true) {
+        // We ONLY accept the release if the signal has been uninterruptedly 
+        // false for the duration of 'debounceDelay'.
+        if ((millis() - lastDebounceTime) >= debounceDelay) {
+            debouncedState = false;
             _lastPressDuration = millis() - pressStartTime;
-        }
-
-        // --- LOGIC: Button Pressed ---
-        if (debouncedState == true) {
-            // Reset duration and start timer
-            pressStartTime = millis();
-            _lastPressDuration = 0; 
         }
     }
 }
