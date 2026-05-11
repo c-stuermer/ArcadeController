@@ -1,43 +1,62 @@
 /**
- * Project: Arcade Controller V0.2
- * File: AppManager.h
- * Description: Manages the lifecycle and switching of the active application.
- * Note: Consider letting AppManager own the App instances instead of ArcadeController in the future.
+ * Project: Arcade Controller V1.0
+ * File: apps/AppManager.h
+ * Description: Owns the InputHandler and all App instances. Routes hardware
+ *              input to the currently active App and handles app switching.
  */
 
 #pragma once
+
 #include "App.h"
+#include "AppId.h"
+#include "../hal/InputHandler.h"
+
+#include "MenuApp/MenuApp.h"
+#include "BluetoothApp/BluetoothApp.h"
+#include "InfoApp/InfoApp.h"
+#include "InputMonitorApp/InputMonitorApp.h"
+#include "SpaceInvadersApp/SpaceInvadersApp.h"
+
+class ISystem;
 
 class AppManager {
 private:
-    App* currentApp = nullptr;
+    InputHandler input;
+
+    // App instances - constructed once, live as long as AppManager.
+    MenuApp          menuApp;
+    BluetoothApp     bluetoothApp;
+    InfoApp          infoApp;
+    InputMonitorApp  inputMonitorApp;
+    SpaceInvadersApp spaceInvadersApp;
+
+    App*  currentApp   = nullptr;
+    AppId currentAppId = AppId::Menu;  // valid only while currentApp != nullptr
 
 public:
-    // Switches to a new application, handling the lifecycle (stop old -> start new)
-    void startApp(App* newApp) {
-        if (currentApp) {
-            currentApp->stop();
-        }
+    explicit AppManager(ISystem* sys)
+        : menuApp(sys),
+          bluetoothApp(sys),
+          infoApp(sys),
+          inputMonitorApp(sys),
+          spaceInvadersApp(sys) {}
 
-        currentApp = newApp;
-        
-        if (currentApp) {
-            currentApp->start();
-        }
-    }
+    void begin();
+    void update();
 
-    // Called in the main loop to process the active application
-    void update() {
-        if (currentApp) currentApp->update();
-    }
+    // --- App switching ---
+    void startApp(AppId id);
+    bool isCurrent(AppId id) const;
 
-    // Routes input events to the currently active app
-    void handleInput(ControlEvent ev, EventType type) {
-        if (currentApp) currentApp->onInput(ev, type);
-    }
+    // Direct accessor for the boot sequence in ArcadeController.
+    BluetoothApp* getBluetoothApp() { return &bluetoothApp; }
 
-    // Helper to check which app is currently running
-    bool isCurrent(App* app) {
-        return currentApp == app;
-    }
+    // Exposes the InputHandler for apps that poll input directly
+    // (InputMonitorApp, SpaceInvadersApp). Event delivery still happens
+    // through the registered onEvent callback.
+    InputHandler* getInput() { return &input; }
+
+private:
+    App* resolveApp(AppId id);
+    void handleInput(ControlEvent ev, EventType type);
 };

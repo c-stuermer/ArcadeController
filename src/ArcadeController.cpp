@@ -1,5 +1,5 @@
 /**
- * Project: Arcade Controller V0.2
+ * Project: Arcade Controller V1.0
  * File: ArcadeController.cpp
  */
 
@@ -7,106 +7,94 @@
 
 void ArcadeController::begin() {
     Serial.begin(115200);
-    Serial.println("[SYSTEM] ArcadeController V0.2");
+    Serial.println("[SYSTEM] ArcadeController V1.0");
 
-    // Initialize all hardware abstraction layers
-    power.begin(); 
-    display.begin(); 
+    // 1. HAL singletons
+    power.begin();
+    display.begin();
     sound.begin();
-    input.begin(); 
     settings.begin();
 
-    // Initialize the gamepad driver
-    gamepadDriver = &bleGamepadAdapter;
-    gamepadDriver->begin();
+    // 2. App layer (initializes InputHandler and wires its callback to handleInput)
+    appManager.begin();
 
-    // Route all hardware input events to the currently active application
-    input.onEvent([this](ControlEvent ev, EventType type) {
-        this->appManager.handleInput(ev, type);
-    });
-
-    // Apply configuration from persistent storage
+    // 3. Apply persisted display/sound settings
     applySavedSettings();
 
-    // --- Boot Sequence ---
-    if (power.isSwitchedOn()) {
-        uint8_t bootMode = settings.getBootMode();
+    // 4. Boot Sequence
+    if (!power.isSwitchedOn()) return;
 
-        if (bootMode == 0) {
-            // Stealth Mode: Start directly into Bluetooth, disable display and sound
-            Serial.println("[SYSTEM] Booting in Stealth Mode...");
-            display.setBrightness(0);
-            sound.setVolume(0);
-            appManager.startApp(&bluetoothApp); 
-        } else {
-            // Normal Mode: Start into the main menu with startup sound
-            Serial.println("[SYSTEM] Booting in Normal Mode...");
-            appManager.startApp(&menuApp); 
-            sound.play(SoundEffect::LASER);
-        }         
+    // The BLE gamepad adapter is owned by BluetoothApp and is only brought
+    // up when that app is entered for the first time. This keeps the device
+    // off the air whenever the user just wants to use the local apps
+    // (Menu, Info, InputMonitor, SpaceInvaders) and saves battery. Once
+    // entered, BluetoothApp::stop() does NOT tear the adapter down, so the
+    // gamepad keeps working while the user navigates other apps.
+    if (settings.getBootMode() == 0) {
+        // Stealth Mode: boot straight into BluetoothApp (silent gamepad use
+        // case), suppress display + sound output.
+        Serial.println("[SYSTEM] Booting in Stealth Mode...");
+        display.setBrightness(0);
+        sound.setVolume(0);
+        appManager.startApp(AppId::Bluetooth);
+    } else {
+        // Normal Mode: open the menu. BLE only comes up if the user enters
+        // BluetoothApp from there.
+        Serial.println("[SYSTEM] Booting in Normal Mode...");
+        appManager.startApp(AppId::Menu);
+        sound.play(SoundEffect::LASER);
     }
 }
 
 void ArcadeController::update() {
-    // Periodically sync battery state
-    syncSystemStats();
-    
-    // Poll hardware states
+    // Hardware battery polling
     power.update();
-    input.update();
 
     // --- Power Management ---
-    // If the physical power switch is turned off, clear the display 
-    // and enter deep sleep immediately to preserve battery life.
+    // Physical power switch off -> deep sleep immediately
     if (!power.isSwitchedOn()) {
-        Serial.println("[SYTEM] Switch turned OFF -> Entering Deep Sleep");
+        Serial.println("[SYSTEM] Switch turned OFF -> Entering Deep Sleep");
         display.setBrightness(0);
         display.clear();
+        // Let the display flush the cleared framebuffer before peripherals
+        // are powered down in enterDeepSleep() — prevents ghosted pixels.
         delay(50);
         power.enterDeepSleep();
     }
 
-    // Process active application logic and outputs
+    // --- Battery -> Display sync (every 60s) ---
+    // Note: BluetoothApp pulls battery for the gamepad adapter itself,
+    // so we no longer push to a gamepad here.
+    static uint32_t lastBatteryPush = 0;
+    if (millis() - lastBatteryPush > 60000 || lastBatteryPush == 0) {
+        display.setBatteryLevel(power.getBatteryPercentage());
+        lastBatteryPush = millis();
+    }
+
+    // --- App layer ---
     appManager.update();
-    sound.update();      
+    sound.update();
 }
 
-// --- Settings Implementation ---
+// --- Cross-cutting setters --------------------------------------------------
 
-void ArcadeController::applySavedSettings() {
-    uint8_t bright = settings.getBrightness();
-    display.setBrightness(bright);
-
-    uint8_t vol = settings.getVolume();
-    sound.setVolume(vol); 
-}
-
-void ArcadeController::updateSystemBrightness(uint8_t level) {
-    settings.setBrightness(level); 
+void ArcadeController::setBrightness(uint8_t level) {
+    settings.setBrightness(level);
     display.setBrightness(level);
 }
 
-void ArcadeController::updateSystemVolume(uint8_t level) {
+void ArcadeController::setVolume(uint8_t level) {
     settings.setVolume(level);
     sound.setVolume(level);
 }
 
-void ArcadeController::updateSystemBootMode(uint8_t mode) {
-    settings.setBootMode(mode); 
+void ArcadeController::setBootMode(uint8_t mode) {
+    settings.setBootMode(mode);
 }
 
-void ArcadeController::syncSystemStats() {
-    static uint32_t lastBatteryCheck = 0;
-    
-    // Check battery level every 60 seconds to avoid unnecessary polling overhead
-    if (millis() - lastBatteryCheck > 60000 || lastBatteryCheck == 0) {
-        int battery = power.getBatteryPercentage();
+// --- Private ----------------------------------------------------------------
 
-        // Active push principle: distribute the current battery status to UI and Gamepad
-        display.setBatteryLevel(battery);
-        gamepadDriver->setBatteryLevel(battery);
-
-        lastBatteryCheck = millis();
-        Serial.printf("[SYSTEM] Battery Sync: %d%%\n", battery);
-    }
+void ArcadeController::applySavedSettings() {
+    display.setBrightness(settings.getBrightness());
+    sound.setVolume(settings.getVolume());
 }
