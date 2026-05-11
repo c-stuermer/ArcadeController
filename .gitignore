@@ -32,3 +32,8 @@ build/
 ehthumbs.db
 Thumbs.db
 Desktop.ini
+
+# --- Project Documentation (kept locally, not published) ---
+*.docx
+*.pdf
+~$*
