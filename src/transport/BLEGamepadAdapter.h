@@ -1,5 +1,5 @@
 /**
- * Project: Arcade Controller V0.2
+ * Project: Arcade Controller V1.0
  * File: BLEGamepadAdapter.h
  * Description: Implementation of the gamepad interface using ESP32 BLE.
  */
@@ -37,10 +37,10 @@ private:
 
 public:
     BleGamepadAdapter() {
-        ble = new BleGamepad("Arcade Controller", "IDDQD", 50);  // TODO: find bug in battery load transmission
+        ble = new BleGamepad("Arcade Controller", "IDDQD", 50);
 
-        //HID-Report-Descriptort
-        config.setAutoReport(false); 
+        // HID report descriptor
+        config.setAutoReport(false);
         config.setControllerType(CONTROLLER_TYPE_GAMEPAD); 
         config.setHatSwitchCount(1);
         config.setButtonCount(10); 
@@ -122,6 +122,6 @@ public:
     }
     
     void setBatteryLevel(int level) override {
-        ble->setBatteryLevel(level);                // TODO: find bug in battery load transmission
+        ble->setBatteryLevel(level);
     }
 };

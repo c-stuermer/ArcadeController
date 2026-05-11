@@ -1,7 +1,8 @@
 /**
- * Project: Arcade Controller V0.2
+ * Project: Arcade Controller V1.0
  * File: IGamepadOutput.h
- * Description: Interface for gamepad drivers (BLE implemented, TODO: Switch 2).
+ * Description: Interface for gamepad drivers. BLE-HID implemented;
+ *              a Switch 2 profile is planned (see Roadmap).
  */
 
 #pragma once
