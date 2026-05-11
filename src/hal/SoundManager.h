@@ -1,5 +1,5 @@
 /**
- * Project: Arcade Controller V0.2
+ * Project: Arcade Controller V1.0
  * File: SoundManager.h
  * Description: Manages audio effects using ESP32 hardware PWM (LEDC).
  */
@@ -8,7 +8,7 @@
 #include <Arduino.h>
 #include "../config/Config.h"
 
-//Defines available sound effects for the system.
+// Defines available sound effects for the system.
 enum class SoundEffect {
     NONE,
     STARTUP,
@@ -35,7 +35,7 @@ private:
 
 public:
 
-    //Constructor for SoundManager.
+    // Constructor for SoundManager.
     SoundManager(uint8_t pin = PinConfig::SOUND_PWM_PIN, uint8_t channel = PinConfig::SOUND_CHANNEL);
 
     // Initializes the hardware PWM channel.

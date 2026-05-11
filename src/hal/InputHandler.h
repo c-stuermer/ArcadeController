@@ -1,5 +1,5 @@
 /**
- * Project: Arcade Controller V0.2
+ * Project: Arcade Controller V1.0
  * File: InputHandler.h
  * Description: Manages inputs from direct GPIOs and the I2C Expander (MCP23017).
  */

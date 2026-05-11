@@ -1,5 +1,5 @@
 /**
- * Project: Arcade Controller V0.2
+ * Project: Arcade Controller V1.0
  * File: SoundManager.cpp
  * Description: Implementation of audio effect synthesis.
  */
@@ -23,17 +23,14 @@ void SoundManager::play(SoundEffect effect) {
     _currentEffect = effect;
     _startTime = millis();
 
-    // Special case for CLICK: handle immediately without needing ongoing update()
-    if (effect == SoundEffect::CLICK) {
-        ledcWriteTone(_channel, 2500);
-        delay(15); // 15ms is perfectly sufficient for a clean, crisp "tick"
-        ledcWriteTone(_channel, 0); // Turn off immediately
-        _currentEffect = SoundEffect::NONE;
-        return; // We are done, update() doesn't need to process the click anymore
-    }
-
-    // Set duration for continuous effects
+    // Set duration for each effect. CLICK fires its tone here so the
+    // 15 ms blip is tight against the user input, while update() handles
+    // termination (and ongoing synthesis for the other effects).
     switch (effect) {
+        case SoundEffect::CLICK:
+            _duration = 15;
+            ledcWriteTone(_channel, 2500); // Fire immediately for tight UI feedback
+            break;
         case SoundEffect::LASER:     _duration = 300;  break;
         case SoundEffect::STARTUP:   _duration = 600;  break;
         case SoundEffect::EXPLOSION: _duration = 400;  break;
@@ -74,7 +71,8 @@ void SoundManager::updateLaser() {
 }
 
 void SoundManager::updateClick() {
-    // Short, high-frequency pulse (mostly handled in play() already)
+    // Constant high-frequency tone; play() already fired it, this just
+    // re-asserts it for the remainder of the 15 ms window.
     ledcWriteTone(_channel, 2500);
 }
 

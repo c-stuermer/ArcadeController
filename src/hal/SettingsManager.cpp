@@ -1,5 +1,5 @@
 /**
- * Project: Arcade Controller V0.2
+ * Project: Arcade Controller V1.0
  * File: SettingsManager.cpp
  * Description: Implementation of persistent settings logic.
  */
@@ -14,6 +14,7 @@ void SettingsManager::begin() {
     _volume = prefs.getUChar("volume", 100);
     _brightness = prefs.getUChar("brightness", 100);
     _bootMode = prefs.getUChar("bootMode", 0);
+    _gamepadMode = prefs.getUChar("gamepadMode", 0); // 0 = BLE_HID by default
 }
 
 void SettingsManager::setVolume(uint8_t level) {
@@ -32,4 +33,10 @@ void SettingsManager::setBootMode(uint8_t mode) {
     _bootMode = mode;
     // Save permanently to flash storage
     prefs.putUChar("bootMode", _bootMode);
+}
+
+void SettingsManager::setGamepadMode(uint8_t mode) {
+    _gamepadMode = mode;
+    // Save permanently to flash storage
+    prefs.putUChar("gamepadMode", _gamepadMode);
 }

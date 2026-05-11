@@ -1,5 +1,5 @@
 /**
- * Project: Arcade Controller V0.2
+ * Project: Arcade Controller V1.0
  * File: InputHandler.cpp
  * Description: Implementation of input scanning and debounce logic.
  */
@@ -29,10 +29,10 @@ static const ButtonMapEntry BUTTON_MAP[] = {
     { PinConfig::JOYSTICK_UP,   ControlEvent::JOY_UP },
     { PinConfig::JOYSTICK_DOWN, ControlEvent::JOY_DOWN },
     { PinConfig::JOYSTICK_LEFT, ControlEvent::JOY_LEFT },
-    { PinConfig::JOYSTICK_RIGHT,ControlEvent::JOY_RIGHT },
-    
-    // System
-    { PinConfig::POWER,         ControlEvent::SYS_POWER }
+    { PinConfig::JOYSTICK_RIGHT,ControlEvent::JOY_RIGHT }
+
+    // Note: The power switch is polled directly by PowerManager via digitalRead()
+    // and is intentionally not part of this map.
 };
 
 InputHandler::InputHandler() {
@@ -57,7 +57,7 @@ void InputHandler::begin() {
     // Check for MCP23017 on the bus
     Wire.beginTransmission(PinConfig::MCP_ADDRESS);
     if (Wire.endTransmission() == 0) {
-        Serial.printf("[I2C] MCP23017 connected!");
+        Serial.println("[I2C] MCP23017 connected!");
         mcpConnected = true;
         mcp.begin_I2C(PinConfig::MCP_ADDRESS);
     } else {

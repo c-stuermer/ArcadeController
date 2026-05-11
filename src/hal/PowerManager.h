@@ -1,7 +1,9 @@
 /**
- * Project: Arcade Controller V0.2
- * File: PowerManager.h
- * Description: Manages battery monitoring, sleep modes, and pin states (Hardware Logic).
+ * Project: Arcade Controller V1.0
+ * File: hal/PowerManager.h
+ * Description: Battery monitoring, sleep modes, and the physical power
+ *              switch. The reset button is wired to the ESP32 EN-pin
+ *              (hardware reset), so it is invisible to software.
  */
 
 #pragma once
@@ -10,45 +12,40 @@
 
 class PowerManager {
 public:
-    PowerManager(); 
+    PowerManager();
 
     void begin();
     void update();
 
-    // --- Getters ---
-    float getBatteryVoltage() const { return batteryVoltage; }
-    int getBatteryPercentage() const { return batteryPercentage; }
-    
-    // --- Status --- 
+    // --- Battery ---
+    float getBatteryVoltage()    const { return batteryVoltage; }
+    int   getBatteryPercentage() const { return batteryPercentage; }
+
+    // --- Power switch state ---
     bool isSwitchedOn();
 
     // --- Actions ---
     void enterDeepSleep();
     void setSystemLedState(bool on);
 
-private: 
-    // --- Internal Helpers ---
-    void turnOffPeripherals();
+private:
+    void  turnOffPeripherals();
     float readBatteryVoltage();
-    int calcBatteryPercentage(float volts);
+    int   calcBatteryPercentage(float volts);
 
-private: 
-    // --- Config & Pins ---
-    const int batteryPin   = PinConfig::BATTERY_AD.pin;
-    const int switchPwrPin = PinConfig::POWER.pin;
-    const int systemLedPin = PinConfig::SYSTEM_LED.pin;
-    
-    // Display Power Control Pins
-    const int backlightPin = PinConfig::DISP_BLK; 
-    const int displayRstPin = PinConfig::DISP_RST; 
+private:
+    const int batteryPin    = PinConfig::BATTERY_AD.pin;
+    const int switchPwrPin  = PinConfig::POWER.pin;
+    const int systemLedPin  = PinConfig::SYSTEM_LED.pin;
 
-    // --- Battery State ---
-    float batteryVoltage = 0.0;
-    int batteryPercentage = 0;
+    const int backlightPin  = PinConfig::DISP_BLK;
+    const int displayRstPin = PinConfig::DISP_RST;
+
+    float batteryVoltage = 0.0f;
+    int   batteryPercentage = 0;
     unsigned long lastBatteryUpdate = 0;
     const unsigned long batteryUpdateInterval = 1000;
 
-    // --- ADC Smoothing ---
     static const int SAMPLES = 10;
     int adcBuffer[SAMPLES];
     int bufferIndex = 0;
