@@ -1,28 +1,35 @@
 /**
- * Project: Arcade Controller V0.2
+ * Project: Arcade Controller V1.0
  * File: MenuApp.cpp
  * Description: Implementation of the main menu logic and rendering.
  */
 
 #include "MenuApp.h"
-#include "../../ArcadeController.h"
+#include "../ISystem.h"
+#include "../AppManager.h"
+#include "../../hal/DisplayManager.h"
+#include "../../hal/SoundManager.h"
+#include "../../hal/SettingsManager.h"
 
 void MenuApp::start() {
+    Serial.println("[APP] MenuApp starting...");
     categories.clear();
 
     // --- Category 1: APPLICATIONS ---
     MenuCategory apps;
     apps.title = "APPLICATIONS";
     
-    apps.items.push_back(MenuItem{"INPUT MONITOR", [this](){ 
-        system->startApp(system->getInputMonitorApp()); 
+    apps.items.push_back(MenuItem{"INPUT MONITOR", [this](){
+        system->getAppManager()->startApp(AppId::InputMonitor);
     }});
 
-    apps.items.push_back(MenuItem{"BLUETOOTH", [this](){ 
-        system->startApp(system->getBluetoothApp()); 
+    apps.items.push_back(MenuItem{"BLUETOOTH", [this](){
+        system->getAppManager()->startApp(AppId::Bluetooth);
     }});
 
-    // SPACE INVADERS has been completely removed from here.
+    apps.items.push_back(MenuItem{"SPACE INVADERS", [this](){
+        system->getAppManager()->startApp(AppId::SpaceInvaders);
+    }});
     
     // --- Category 2: SETTINGS ---
     MenuCategory settings; 
@@ -30,59 +37,59 @@ void MenuApp::start() {
     
     // 1. SOUND (ON/OFF)
     settings.items.push_back(MenuItem{
-        "Sound", 
-        [this](){ 
+        "Sound",
+        [this](){
             uint8_t vol = system->getSettings()->getVolume();
             // Simple toggle between 0 (OFF) and 100 (ON)
-            uint8_t next = (vol == 0) ? 100 : 0; 
-            
-            system->updateSystemVolume(next);
-            menuDirty = true;                           
+            uint8_t next = (vol == 0) ? 100 : 0;
+
+            system->setVolume(next);
+            menuDirty = true;
         },
-        [this](){ 
+        [this](){
             uint8_t vol = system->getSettings()->getVolume();
-            return (vol == 0) ? String("OFF") : String("ON"); 
+            return (vol == 0) ? String("OFF") : String("ON");
         }
     });
 
     // 2. BRIGHTNESS (25% increments)
     settings.items.push_back(MenuItem{
-        "Brightness", 
-        [this](){ 
+        "Brightness",
+        [this](){
             uint8_t bright = system->getSettings()->getBrightness();
-            uint8_t next = (bright >= 100) ? 25 : bright + 25; 
-            
-            system->getSettings()->setBrightness(next);   
-            system->updateSystemBrightness(next);      
-            menuDirty = true;                                  
+            uint8_t next = (bright >= 100) ? 25 : bright + 25;
+
+            // setBrightness persists AND applies in one call.
+            system->setBrightness(next);
+            menuDirty = true;
         },
-        [this](){ 
+        [this](){
             uint8_t bright = system->getSettings()->getBrightness();
             // Assign to string first before returning to ensure proper memory handling
-            String res = String(bright) + "%"; 
-            return res; 
+            String res = String(bright) + "%";
+            return res;
         }
     });
 
     // 3. BOOT MODE (NORMAL / STEALTH)
     settings.items.push_back(MenuItem{
-        "Boot Mode", 
-        [this](){ 
+        "Boot Mode",
+        [this](){
             uint8_t mode = system->getSettings()->getBootMode();
-            uint8_t next = (mode == 0) ? 1 : 0; 
-            
-            system->updateSystemBootMode(next);
-            menuDirty = true;                           
+            uint8_t next = (mode == 0) ? 1 : 0;
+
+            system->setBootMode(next);
+            menuDirty = true;
         },
-        [this](){ 
+        [this](){
             uint8_t mode = system->getSettings()->getBootMode();
-            return (mode == 1) ? String("NORMAL") : String("STEALTH"); 
+            return (mode == 1) ? String("NORMAL") : String("STEALTH");
         }
     });
 
     // 4. SYSTEM INFO
-    settings.items.push_back(MenuItem{"Info", [this](){ 
-        system->startApp(system->getInfoApp());
+    settings.items.push_back(MenuItem{"Info", [this](){
+        system->getAppManager()->startApp(AppId::Info);
     }});
 
     // Add categories to the main list

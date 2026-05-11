@@ -1,15 +1,17 @@
 /**
- * Project: Arcade Controller V0.2
+ * Project: Arcade Controller V1.0
  * File: InputMonitorApp.cpp
  * Description: Implementation of the input monitor UI and logic.
  */
 
 #include "InputMonitorApp.h"
-#include "../../ArcadeController.h"
-
-InputMonitorApp::InputMonitorApp(ArcadeController* ctrl) : App(ctrl) {}
+#include "../ISystem.h"
+#include "../AppManager.h"
+#include "../../hal/DisplayManager.h"
+#include "../../hal/InputHandler.h"
 
 void InputMonitorApp::start() {
+    Serial.println("[APP] InputMonitorApp starting...");
     auto gfx = system->getDisplay()->getGfx();
     gfx->fillScreen(0x0000);
     
@@ -107,8 +109,8 @@ void InputMonitorApp::update() {
         // 2-Second Check
         if (comboTime >= 2000) {
             system->getDisplay()->clearProgressBar();
-            system->startApp(system->getMenuApp());
-            return; 
+            system->getAppManager()->startApp(AppId::Menu);
+            return;
         }
     } else {
         // Clear the bar if any of the three buttons is released

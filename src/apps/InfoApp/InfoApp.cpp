@@ -1,14 +1,18 @@
 /**
- * Project: Arcade Controller V0.2
+ * Project: Arcade Controller V1.0
  * File: InfoApp.cpp
  * Description: Implementation of the system information screen.
  */
 
 #include "InfoApp.h"
-#include "../../ArcadeController.h"
-#include <esp_mac.h> 
+#include "../ISystem.h"
+#include "../AppManager.h"
+#include "../../hal/DisplayManager.h"
+#include "../../hal/PowerManager.h"
+#include <esp_mac.h>
 
 void InfoApp::start() {
+    Serial.println("[APP] InfoApp starting...");
     //clear screen, draw screen first time, reset update interval
     system->getDisplay()->getGfx()->fillScreen(0x0000);
     drawScreen();
@@ -30,7 +34,7 @@ void InfoApp::update() {
 void InfoApp::onInput(ControlEvent ev, EventType type) {
     // Exit the app on ANY button press
     if (type == EventType::PRESSED) {
-        system->startApp(system->getMenuApp()); 
+        system->getAppManager()->startApp(AppId::Menu);
     }
 }
 

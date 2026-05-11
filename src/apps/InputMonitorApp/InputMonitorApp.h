@@ -1,5 +1,5 @@
 /**
- * Project: Arcade Controller V0.2
+ * Project: Arcade Controller V1.0
  * File: InputMonitorApp.h
  * Description: Graphical tool to visualize controller inputs and latency.
  */
@@ -11,7 +11,8 @@
 
 class InputMonitorApp : public App {
 public:
-    InputMonitorApp(ArcadeController* ctrl);
+    using App::App;
+
     void start() override;
     void update() override;
     void stop() override;
