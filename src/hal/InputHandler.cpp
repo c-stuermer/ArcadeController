@@ -1,5 +1,5 @@
 /**
- * Project: Arcade Controller V1.0
+ * Project: Arcade Controller V1.1
  * File: InputHandler.cpp
  * Description: Implementation of input scanning and debounce logic.
  */
@@ -91,13 +91,14 @@ void InputHandler::update() {
     }
 
     // 2. Iterate through all configured buttons
+    uint16_t newStates = 0;
     for (auto &btn : buttons) {
         bool isPhysicalPressed = false;
-        
+
         if (btn.hw.type == PinType::MCP && mcpConnected) {
             // Bitmask check: Is the specific bit at 'pin' set?
             isPhysicalPressed = (mcpState >> btn.hw.pin) & 1;
-        } 
+        }
         else if (btn.hw.type == PinType::ESP) {
             // ESP pins: LOW = Pressed (Pull-up logic)
             isPhysicalPressed = (digitalRead(btn.hw.pin) == LOW);
@@ -106,7 +107,12 @@ void InputHandler::update() {
         // 3. Feed the physical reading into the debounce logic
         btn.logic.update(isPhysicalPressed);
 
-        // 4. Process Events (Edge Detection)
+        // 4. Maintain the debounced-state bitmap (bit position = ControlEvent value)
+        if (btn.logic.isPressed()) {
+            newStates |= (1u << static_cast<int>(btn.eventId));
+        }
+
+        // 5. Process Events (Edge Detection)
         if (btn.logic.wasPressed()) {
             if (_callback) _callback(btn.eventId, EventType::PRESSED);
         }
@@ -115,6 +121,7 @@ void InputHandler::update() {
             if (_callback) _callback(btn.eventId, EventType::RELEASED);
         }
     }
+    _debouncedStates = newStates;
 }
 
 bool InputHandler::isPressed(ControlEvent ev) {

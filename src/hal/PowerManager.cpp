@@ -1,5 +1,5 @@
 /**
- * Project: Arcade Controller V1.0
+ * Project: Arcade Controller V1.1
  * File: hal/PowerManager.cpp
  * Description: Power management and ghost-glow prevention during deep sleep.
  *

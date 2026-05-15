@@ -1,5 +1,5 @@
 /**
- * Project: Arcade Controller V1.0
+ * Project: Arcade Controller V1.1
  * File: Button.cpp
  * Description: Implementation of eager-press debounce logic.
  */

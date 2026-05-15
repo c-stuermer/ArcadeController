@@ -1,5 +1,5 @@
 /**
- * Project: Arcade Controller V1.0
+ * Project: Arcade Controller V1.1
  * File: apps/App.h
  * Description: Abstract base class for all applications.
  */

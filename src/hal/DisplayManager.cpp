@@ -1,5 +1,5 @@
 /**
- * Project: Arcade Controller V1.0
+ * Project: Arcade Controller V1.1
  * File: DisplayManager.cpp
  * Description: Implementation of display routines and UI elements.
  */

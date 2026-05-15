@@ -1,5 +1,5 @@
 /**
- * Project: Arcade Controller V1.0
+ * Project: Arcade Controller V1.1
  * File: SoundManager.cpp
  * Description: Implementation of audio effect synthesis.
  */

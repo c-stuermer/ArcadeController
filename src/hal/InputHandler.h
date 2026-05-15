@@ -1,5 +1,5 @@
 /**
- * Project: Arcade Controller V1.0
+ * Project: Arcade Controller V1.1
  * File: InputHandler.h
  * Description: Manages inputs from direct GPIOs and the I2C Expander (MCP23017).
  */
@@ -44,13 +44,21 @@ public:
     unsigned long getDuration(ControlEvent ev);
     unsigned long getLastPressDuration(ControlEvent ev);
 
+    // --- Bulk Snapshot ---
+    // Debounced bitmap of all logical inputs. Bit position N corresponds to
+    // the ControlEvent enum value N (e.g. bit 0 = BTN_A, bit 10 = JOY_UP).
+    // Intended for poll-style consumers (e.g. InputMonitorApp) that want all
+    // inputs in one register-level read instead of N individual lookups.
+    uint16_t getDebouncedStates() const { return _debouncedStates; }
+
 private:
     Adafruit_MCP23X17 mcp;
     bool mcpConnected = false;
-    uint16_t mcpState = 0; 
+    uint16_t mcpState = 0;
+    uint16_t _debouncedStates = 0;
 
     std::vector<ArcadeButtonDef> buttons;
     unsigned long lastHardwareRead = 0;
-    
-    EventCallback _callback = nullptr; 
+
+    EventCallback _callback = nullptr;
 };

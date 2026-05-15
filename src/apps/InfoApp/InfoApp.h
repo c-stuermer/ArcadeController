@@ -1,5 +1,5 @@
 /**
- * Project: Arcade Controller V1.0
+ * Project: Arcade Controller V1.1
  * File: InfoApp.h
  * Description: Displays system information (hardware, firmware, battery, MAC).
  */

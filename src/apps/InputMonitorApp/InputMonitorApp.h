@@ -1,5 +1,5 @@
 /**
- * Project: Arcade Controller V1.0
+ * Project: Arcade Controller V1.1
  * File: InputMonitorApp.h
  * Description: Graphical tool to visualize controller inputs and latency.
  */
@@ -19,8 +19,9 @@ public:
     void onInput(ControlEvent ev, EventType type) override;
 
 private:
-    // 16-bit field: Each bit represents a button (highly performant)
-    uint16_t lastState = 0xFFFF; 
+    // Cached debounced-state bitmap of the previous frame. Bit positions
+    // mirror the ControlEvent enum (see InputHandler::getDebouncedStates()).
+    uint16_t lastState = 0xFFFF;
 
     void drawArcadeBtn(TFT_eSPI* gfx, int x, int y, int r, uint16_t color, bool pressed);
     void drawJoystick(TFT_eSPI* gfx, int baseX, int baseY, bool up, bool down, bool left, bool right);

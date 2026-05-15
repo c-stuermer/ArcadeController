@@ -1,5 +1,5 @@
 /**
- * Project: Arcade Controller V1.0
+ * Project: Arcade Controller V1.1
  * File: apps/AppManager.h
  * Description: Owns the InputHandler and all App instances. Routes hardware
  *              input to the currently active App and handles app switching.

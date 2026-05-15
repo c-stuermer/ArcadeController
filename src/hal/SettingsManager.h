@@ -1,5 +1,5 @@
 /**
- * Project: Arcade Controller V1.0
+ * Project: Arcade Controller V1.1
  * File: SettingsManager.h
  * Description: Manages persistent storage of user settings using ESP32 Preferences.
  */

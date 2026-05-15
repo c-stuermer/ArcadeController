@@ -1,5 +1,5 @@
 /**
- * Project: Arcade Controller V1.0
+ * Project: Arcade Controller V1.1
  * File: apps/SpaceInvadersApp/SpaceInvadersApp.h
  * Description: Retro mini-game (Space Invaders clone). State machine:
  *              TITLE -> PLAYING -> PAUSED / GAMEOVER. SELECT+L2+R2 (2s)

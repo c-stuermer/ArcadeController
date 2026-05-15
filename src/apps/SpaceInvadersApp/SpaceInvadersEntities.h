@@ -1,5 +1,5 @@
 /**
- * Project: Arcade Controller V1.0
+ * Project: Arcade Controller V1.1
  * File: apps/SpaceInvadersApp/SpaceInvadersEntities.h
  * Description: Game entities (Projectile, AlienEntity, PlayerEntity).
  *              Header-only for inlining in the hot game loop.

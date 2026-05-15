@@ -1,5 +1,5 @@
 /**
- * Project: Arcade Controller V1.0
+ * Project: Arcade Controller V1.1
  * File: SoundManager.h
  * Description: Manages audio effects using ESP32 hardware PWM (LEDC).
  */

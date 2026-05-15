@@ -1,5 +1,5 @@
 /**
- * Project: Arcade Controller V1.0
+ * Project: Arcade Controller V1.1
  * File: InfoApp.cpp
  * Description: Implementation of the system information screen.
  */

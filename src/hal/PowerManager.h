@@ -1,5 +1,5 @@
 /**
- * Project: Arcade Controller V1.0
+ * Project: Arcade Controller V1.1
  * File: hal/PowerManager.h
  * Description: Battery monitoring, sleep modes, and the physical power
  *              switch. The reset button is wired to the ESP32 EN-pin

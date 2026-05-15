@@ -6,7 +6,11 @@
 
 A modular, C++ based firmware for a custom-built Arcade Controller. Powered by an ESP32 with an MCP23017 I/O expander.
 
-> **V1.0 ARCHITECTURE OVERHAUL**
+> **V1.1 — INPUT HANDLER REFINEMENT**
+>
+> `InputHandler` now publishes a debounced-state bitmap via `getDebouncedStates()`. Poll-style consumers such as `InputMonitorApp` read the entire input snapshot in a single register-level call instead of N individual `isPressed()` lookups. Bit positions mirror the `ControlEvent` enum, so the layout is self-documenting and shared across the project.
+>
+> **V1.0 — ARCHITECTURE OVERHAUL**
 >
 > This release decouples the App layer from the composition root via a narrow `ISystem` service interface. App lifecycle and ownership have moved from `ArcadeController` into a dedicated `AppManager`, the gamepad transport is now fully owned by the `BluetoothApp` (BLE-HID active, Switch HID profile planned), and a `SpaceInvadersApp` mini-game has joined the catalogue.
 >
@@ -18,6 +22,7 @@ A modular, C++ based firmware for a custom-built Arcade Controller. Powered by a
 
 * **Eager-Press & Low-Latency Input:** The button debouncing (`Button` class) uses an "eager-press" logic. A button press is registered immediately, while the release is delayed (debounced) to ensure signal stability.
 * **Decoupled App Layer via Service Interface:** Apps depend only on the slim `ISystem` interface, not on the concrete `ArcadeController`. The `AppManager` owns all `App` instances, the `InputHandler`, and routes input to the active app. App switching is identifier-based via the `AppId` enum — no app needs to know about another.
+* **Three-Pattern Input API:** `InputHandler` exposes the debounced input state in three complementary shapes — event callbacks for reactive consumers (`onEvent`), per-event polling for selective checks (`isPressed`, `getDuration`), and a compact 16-bit snapshot bitmap for bulk reads (`getDebouncedStates`). Each app picks the access pattern that fits its use case; debouncing lives exclusively in the HAL.
 * **Modular App Catalogue:** `MenuApp` (settings & navigation), `BluetoothApp` (gamepad UI), `InfoApp` (system info), `InputMonitorApp` (input visualizer & latency display), `SpaceInvadersApp` (retro mini-game).
 * **Multi-Mode Gamepad Transport:** `BluetoothApp` owns the gamepad adapter (BLE-HID via NimBLE active today; Switch HID profile planned) behind the `IGamepadOutput` interface. The active mode is switchable at runtime and persisted in flash, so the last-used profile is restored whenever the user opens `BluetoothApp`.
 * **Emergency Exit Combo:** Hold `SELECT + L2 + R2` for 2 seconds inside `InputMonitorApp` or `SpaceInvadersApp` to return to the main menu — with a visual progress bar to confirm the combo.
@@ -92,7 +97,7 @@ This firmware is designed for the following hardware configuration:
 
 ## 🗺 Roadmap
 
-### Planned for V1.1: Auto-Generated App Registry
+### Planned for V1.2: Auto-Generated App Registry
 
 Currently, adding a new app requires touching three places:
 
@@ -100,7 +105,7 @@ Currently, adding a new app requires touching three places:
 2. Member declaration, constructor init, and `resolveApp()` switch in `AppManager`
 3. The `MenuApp` to add the menu entry
 
-The plan for V1.1 is to consolidate this into a **single source of truth** — one central
+The plan for V1.2 is to consolidate this into a **single source of truth** — one central
 `apps/AppList.h` file containing every app exactly once, with the `AppId` enum,
 `AppManager` members, the `resolveApp` switch, and the `MenuApp` entries all generated
 from that single list.

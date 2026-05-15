@@ -1,5 +1,5 @@
 /**
- * Project: Arcade Controller V1.0
+ * Project: Arcade Controller V1.1
  * File: apps/SpaceInvadersApp/SpaceInvadersApp.cpp
  */
 
@@ -198,7 +198,7 @@ void SpaceInvadersApp::drawTitleScreen() {
 
     gfx->setTextSize(1);
     gfx->setTextColor(0xFFFF);
-    gfx->drawString("V1.0 ARCADE EDITION", 25, 115);
+    gfx->drawString("V1.1 ARCADE EDITION", 25, 115);
 }
 
 void SpaceInvadersApp::updateTitleAnimation() {

@@ -1,5 +1,5 @@
 /**
- * Project: Arcade Controller V1.0
+ * Project: Arcade Controller V1.1
  * File: Button.h
  * Description: Handles software debouncing and state timing for physical buttons.
  */

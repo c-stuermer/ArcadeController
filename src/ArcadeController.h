@@ -1,5 +1,5 @@
 /**
- * Project: Arcade Controller V1.0
+ * Project: Arcade Controller V1.1
  * File: ArcadeController.h
  * Description: Composition root and ISystem implementation.
  *

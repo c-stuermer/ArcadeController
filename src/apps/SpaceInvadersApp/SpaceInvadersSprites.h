@@ -1,5 +1,5 @@
 /**
- * Project: Arcade Controller V1.0
+ * Project: Arcade Controller V1.1
  * File: apps/SpaceInvadersApp/SpaceInvadersSprites.h
  * Description: PROGMEM bitmap sprites for the SpaceInvaders mini-game.
  *              All sprites are formatted as exactly 16x8 pixels, centred.
