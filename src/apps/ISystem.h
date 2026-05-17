@@ -1,5 +1,5 @@
 /**
- * Project: Arcade Controller V1.1
+ * Project: Arcade Controller V1.2
  * File: apps/ISystem.h
  * Description: Narrow service interface that the App layer uses to talk to
  *              the system. ArcadeController implements this interface.

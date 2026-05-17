@@ -1,5 +1,5 @@
 /**
- * Project: Arcade Controller V1.1
+ * Project: Arcade Controller V1.2
  * File: apps/SpaceInvadersApp/SpaceInvadersEntities.h
  * Description: Game entities (Projectile, AlienEntity, PlayerEntity).
  *              Header-only for inlining in the hot game loop.
@@ -7,6 +7,7 @@
 
 #pragma once
 #include <TFT_eSPI.h>
+#include "../../config/Colors.h"
 #include "SpaceInvadersSprites.h"
 
 // --- PROJECTILE (bullet & bomb) ---
@@ -44,7 +45,7 @@ public:
         else if (type == 1) sprite = (animFrame == 0) ? alien_crab_1 : alien_crab_2;
         else sprite = (animFrame == 0) ? alien_octopus_1 : alien_octopus_2;
 
-        gfx->drawBitmap(x, y, sprite, 16, 8, 0xF800);
+        gfx->drawBitmap(x, y, sprite, 16, 8, Colors::RED);
     }
 
     bool checkHit(int px, int py) {

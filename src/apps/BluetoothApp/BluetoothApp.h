@@ -1,5 +1,5 @@
 /**
- * Project: Arcade Controller V1.1
+ * Project: Arcade Controller V1.2
  * File: apps/BluetoothApp/BluetoothApp.h
  * Description: Owns the gamepad transport (BLE-HID; Switch 2 planned) and
  *              provides the local Bluetooth UI / state machine that the

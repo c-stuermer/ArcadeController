@@ -1,5 +1,5 @@
 /**
- * Project: Arcade Controller V1.1
+ * Project: Arcade Controller V1.2
  * File: InfoApp.cpp
  * Description: Implementation of the system information screen.
  */
@@ -7,6 +7,7 @@
 #include "InfoApp.h"
 #include "../ISystem.h"
 #include "../AppManager.h"
+#include "../../config/Colors.h"
 #include "../../hal/DisplayManager.h"
 #include "../../hal/PowerManager.h"
 #include <esp_mac.h>
@@ -14,7 +15,7 @@
 void InfoApp::start() {
     Serial.println("[APP] InfoApp starting...");
     //clear screen, draw screen first time, reset update interval
-    system->getDisplay()->getGfx()->fillScreen(0x0000);
+    system->getDisplay()->getGfx()->fillScreen(Colors::BLACK);
     drawScreen();
     lastUpdate = millis();
 }
@@ -39,128 +40,69 @@ void InfoApp::onInput(ControlEvent ev, EventType type) {
 }
 
 void InfoApp::drawScreen() {
-    auto disp = system->getDisplay();
-    auto gfx = disp->getGfx();
-    auto power = system->getPower(); 
-    
-    // alignment values for screen content
-    int leftCol = 10;
-    int rightCol = 80; 
-    int y = 26;
-    int step = 14; 
+    auto* disp  = system->getDisplay();
+    auto* gfx   = disp->getGfx();
+    auto* power = system->getPower();
 
-    gfx->setTextSize(1);
+    // Alignment / layout
+    const int leftCol  = 10;
+    const int rightCol = 80;
+    const int step     = 14;
+    int       y        = 26;
 
-    // extendet drawing operations for first screen draw
-    // that static text dosnt flicker every update
-    if (drawFirstTime == true) {
-        drawFirstTime = false;
-
-        //clear whole screen
-        gfx->fillRect(0, 14, 160, 114, 0x0000);
-
-        
-
-        // --- SOFTWARE ---
-
-        gfx->setTextColor(0xFFFF);
-        gfx->drawString(FIRMWARE_VERSION, rightCol, y);
-        y += step;
-
-        // --- HARDWARE ---
-        y += 4; 
-        gfx->setTextColor(0x7BEF);
-        gfx->drawString("CPU FREQ:", leftCol, y);
-        gfx->setTextColor(0x07E0); // Green
-        gfx->drawString(String(ESP.getCpuFreqMHz()) + " MHz", rightCol, y);
-        y += step;
-
-        gfx->setTextColor(0x7BEF);
-        gfx->drawString("FREE RAM:", leftCol, y);
-        gfx->setTextColor(0xFFE0); // Yellow
-        gfx->drawString(String(ESP.getFreeHeap() / 1024) + " KB", rightCol, y);
-        y += step;
-
-        // --- BATTERY & POWER ---
-        y += 4; 
-        
-        float voltage = power->getBatteryVoltage();
-        int percent = power->getBatteryPercentage();
-        
-        gfx->setTextColor(0x7BEF);
-        gfx->drawString("BATT VOLT:", leftCol, y);
-        gfx->setTextColor(0x07FF); // Cyan
-        gfx->drawString(String(voltage, 2) + " V", rightCol, y); 
-        y += step;
-
-        gfx->setTextColor(0x7BEF);
-        gfx->drawString("BATT %:", leftCol, y);
-        
-        uint16_t battColor = (percent > 20) ? 0x07E0 : 0xF800; // Green or Red
-        gfx->setTextColor(battColor); 
-        gfx->drawString(String(percent) + " %", rightCol, y);
-        y += step;
-
-
-    }
-
-    gfx->fillRect(0, 14, 160, 114, 0x0000);
+    // Wipe the content area below the header, then redraw header.
+    gfx->fillRect(0, 14, 160, 114, Colors::BLACK);
     disp->drawHeader("SYSTEM INFO");
-
-    
 
     gfx->setTextSize(1);
 
     // --- SOFTWARE ---
-
-    gfx->setTextColor(0xFFFF);
+    gfx->setTextColor(Colors::WHITE);
     gfx->drawString(FIRMWARE_VERSION, rightCol, y);
     y += step;
 
     // --- HARDWARE ---
-    y += 4; 
-    gfx->setTextColor(0x7BEF);
+    y += 4;
+    gfx->setTextColor(Colors::GREY);
     gfx->drawString("CPU FREQ:", leftCol, y);
-    gfx->setTextColor(0x07E0); // Green
+    gfx->setTextColor(Colors::GREEN);
     gfx->drawString(String(ESP.getCpuFreqMHz()) + " MHz", rightCol, y);
     y += step;
 
-    gfx->setTextColor(0x7BEF);
+    gfx->setTextColor(Colors::GREY);
     gfx->drawString("FREE RAM:", leftCol, y);
-    gfx->setTextColor(0xFFE0); // Yellow
+    gfx->setTextColor(Colors::YELLOW);
     gfx->drawString(String(ESP.getFreeHeap() / 1024) + " KB", rightCol, y);
     y += step;
 
     // --- BATTERY & POWER ---
-    y += 4; 
-    
-    float voltage = power->getBatteryVoltage();
-    int percent = power->getBatteryPercentage();
-    
-    gfx->setTextColor(0x7BEF);
+    y += 4;
+    const float voltage = power->getBatteryVoltage();
+    const int   percent = power->getBatteryPercentage();
+
+    gfx->setTextColor(Colors::GREY);
     gfx->drawString("BATT VOLT:", leftCol, y);
-    gfx->setTextColor(0x07FF); // Cyan
-    gfx->drawString(String(voltage, 2) + " V", rightCol, y); 
+    gfx->setTextColor(Colors::CYAN);
+    gfx->drawString(String(voltage, 2) + " V", rightCol, y);
     y += step;
 
-    gfx->setTextColor(0x7BEF);
+    gfx->setTextColor(Colors::GREY);
     gfx->drawString("BATT %:", leftCol, y);
-    
-    uint16_t battColor = (percent > 20) ? 0x07E0 : 0xF800; // Green or Red
-    gfx->setTextColor(battColor); 
+    const uint16_t battColor = (percent > 20) ? Colors::GREEN : Colors::RED;
+    gfx->setTextColor(battColor);
     gfx->drawString(String(percent) + " %", rightCol, y);
     y += step;
 
     // --- LOCAL MAC ADDRESS (Bottom) ---
-    y += 4; 
+    y += 4;
     uint8_t mac[6];
-    esp_read_mac(mac, ESP_MAC_BT); 
+    esp_read_mac(mac, ESP_MAC_BT);
     char macStr[18];
-    snprintf(macStr, sizeof(macStr), "%02X:%02X:%02X:%02X:%02X:%02X", 
+    snprintf(macStr, sizeof(macStr), "%02X:%02X:%02X:%02X:%02X:%02X",
              mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-    
-    gfx->setTextColor(0x7BEF);
-    gfx->drawString("MAC:", leftCol, y); 
-    gfx->setTextColor(0xFFFF);
+
+    gfx->setTextColor(Colors::GREY);
+    gfx->drawString("MAC:", leftCol, y);
+    gfx->setTextColor(Colors::WHITE);
     gfx->drawString(macStr, rightCol - 30, y);
 }

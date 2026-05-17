@@ -1,5 +1,5 @@
 /**
- * Project: Arcade Controller V1.1
+ * Project: Arcade Controller V1.2
  * File: MenuApp.cpp
  * Description: Implementation of the main menu logic and rendering.
  */
@@ -7,6 +7,7 @@
 #include "MenuApp.h"
 #include "../ISystem.h"
 #include "../AppManager.h"
+#include "../../config/Colors.h"
 #include "../../hal/DisplayManager.h"
 #include "../../hal/SoundManager.h"
 #include "../../hal/SettingsManager.h"
@@ -101,7 +102,7 @@ void MenuApp::start() {
     currentCatIndex = 0;
 
     // Initial screen clear and force redraw
-    system->getDisplay()->getGfx()->fillScreen(0x0000);
+    system->getDisplay()->getGfx()->fillScreen(Colors::BLACK);
     menuDirty = true; 
 }
 
@@ -122,13 +123,12 @@ void MenuApp::drawMenu() {
 
     gfx->setTextSize(1); 
     
-    int startY = 25; 
-    int lineHeight = 15; 
-    uint16_t greenColor = 0x07E0; 
+    const int startY     = 25;
+    const int lineHeight = 15;
 
     for (size_t i = 0; i < items.size(); i++) {
         int yPos = startY + (i * lineHeight);
-        
+
         // 1. Get base name
         String menuText = String(items[i].name);
 
@@ -142,12 +142,12 @@ void MenuApp::drawMenu() {
 
         if (i == currentItemIndex) {
             // Selected item: Green background bar (14px high for text size 1), black text
-            gfx->fillRect(0, yPos - 4, 160, lineHeight, greenColor); 
-            gfx->setTextColor(0x0000); 
+            gfx->fillRect(0, yPos - 4, 160, lineHeight, Colors::GREEN);
+            gfx->setTextColor(Colors::BLACK);
         } else {
             // Unselected item: Black background, white text
-            gfx->fillRect(0, yPos - 4, 160, lineHeight, 0x0000); 
-            gfx->setTextColor(0xFFFF); 
+            gfx->fillRect(0, yPos - 4, 160, lineHeight, Colors::BLACK);
+            gfx->setTextColor(Colors::WHITE);
         }
 
         gfx->setCursor(5, yPos);
@@ -181,7 +181,7 @@ void MenuApp::onInput(ControlEvent ev, EventType type) {
             currentItemIndex = 0; 
             
             // Clear screen entirely on category change because the title bar needs to be redrawn
-            system->getDisplay()->getGfx()->fillScreen(0x0000);
+            system->getDisplay()->getGfx()->fillScreen(Colors::BLACK);
             needRedraw = true;
             break;
             
@@ -189,7 +189,7 @@ void MenuApp::onInput(ControlEvent ev, EventType type) {
             currentCatIndex = (currentCatIndex < categories.size() - 1) ? currentCatIndex + 1 : 0;
             currentItemIndex = 0;
             
-            system->getDisplay()->getGfx()->fillScreen(0x0000);
+            system->getDisplay()->getGfx()->fillScreen(Colors::BLACK);
             needRedraw = true;
             break;
             

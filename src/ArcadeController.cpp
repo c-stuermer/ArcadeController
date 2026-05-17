@@ -1,5 +1,5 @@
 /**
- * Project: Arcade Controller V1.1
+ * Project: Arcade Controller V1.2
  * File: ArcadeController.cpp
  */
 
@@ -7,7 +7,7 @@
 
 void ArcadeController::begin() {
     Serial.begin(115200);
-    Serial.println("[SYSTEM] ArcadeController V1.1");
+    Serial.println("[SYSTEM] ArcadeController V1.2");
 
     // 1. HAL singletons
     power.begin();

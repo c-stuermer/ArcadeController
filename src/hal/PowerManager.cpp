@@ -1,5 +1,5 @@
 /**
- * Project: Arcade Controller V1.1
+ * Project: Arcade Controller V1.2
  * File: hal/PowerManager.cpp
  * Description: Power management and ghost-glow prevention during deep sleep.
  *
@@ -44,7 +44,7 @@ void PowerManager::begin() {
 }
 
 void PowerManager::update() {
-    if (millis() - lastBatteryUpdate > batteryUpdateInterval) {
+    if (millis() - lastBatteryUpdate > BATTERY_UPDATE_MS) {
         batteryVoltage    = readBatteryVoltage();
         batteryPercentage = calcBatteryPercentage(batteryVoltage);
         lastBatteryUpdate = millis();
@@ -116,14 +116,19 @@ float PowerManager::readBatteryVoltage() {
     long sum = 0;
     for (int i = 0; i < SAMPLES; i++) sum += adcBuffer[i];
 
-    float avgMv = (float)sum / SAMPLES;
-    return (avgMv * 2.0f) / 1000.0f; // Adjust based on your voltage divider
+    const float avgMv = (float)sum / SAMPLES;
+    return (avgMv * VDIV_RATIO) / 1000.0f;   // mV -> V, undoing the voltage divider
 }
 
 int PowerManager::calcBatteryPercentage(float voltage) {
-    if (voltage >= 4.15f) return 100;
-    if (voltage <= 3.30f) return 0;
+    if (voltage >= BATTERY_FULL_V)  return 100;
+    if (voltage <= BATTERY_EMPTY_V) return 0;
 
-    long pct = map((long)(voltage * 100), 330, 415, 0, 100);
+    // Linear interpolation between empty and full. map() works on longs, so
+    // we scale the voltages by 100 to keep two decimals of resolution.
+    const long pct = map((long)(voltage * 100),
+                         (long)(BATTERY_EMPTY_V * 100),
+                         (long)(BATTERY_FULL_V  * 100),
+                         0, 100);
     return constrain(pct, 0, 100);
 }

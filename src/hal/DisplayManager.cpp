@@ -1,99 +1,81 @@
 /**
- * Project: Arcade Controller V1.1
+ * Project: Arcade Controller V1.2
  * File: DisplayManager.cpp
  * Description: Implementation of display routines and UI elements.
  */
 
 #include "DisplayManager.h"
 
-DisplayManager::DisplayManager() {
-    // Constructor is empty now. 
-    // The 'screen' object is automatically initialized when DisplayManager is created.
-}
-
 void DisplayManager::begin() {
     Serial.println("[DISPLAY] Init TFT_eSPI...");
-    
-    // TFT_eSPI initialization
-    screen.begin(); 
-    
+
+    screen.begin();
+
     // Orientation: 3 = Landscape
-    screen.setRotation(3); 
-    
+    screen.setRotation(3);
+
     // Set initial text color (White) and size
     screen.setTextSize(1);
-    screen.setTextColor(0xFFFF); 
+    screen.setTextColor(Colors::WHITE);
 }
 
 void DisplayManager::clear() {
-    // Fill screen with black
-    screen.fillScreen(0x0000); 
+    screen.fillScreen(Colors::BLACK);
 }
 
 void DisplayManager::drawHeader(const String& title) {
-    screen.setTextColor(0xFFFF, 0x0000); 
+    screen.setTextColor(Colors::WHITE, Colors::BLACK);
     screen.setTextSize(1);
 
     screen.setCursor(2, 2);
     screen.print(title);
-    
-    screen.drawFastHLine(0, 12, 160, 0xFFFF); 
 
-    int bx = 135; 
-    int by = 2;
-    int bw = 20;
-    int bh = 8;
+    // Horizontal separator line just below the title
+    screen.drawFastHLine(0, HEADER_H, SCREEN_W, Colors::WHITE);
 
-    // Draw battery outline
-    screen.drawRect(bx, by, bw, bh, 0xFFFF); 
-    screen.drawFastVLine(bx + bw, by + 2, 4, 0xFFFF); 
+    // --- Battery indicator (outline + cap + fill) ---
+    screen.drawRect(BATT_X, BATT_Y, BATT_W, BATT_H, Colors::WHITE);
+    screen.drawFastVLine(BATT_X + BATT_W, BATT_Y + 2, 4, Colors::WHITE);
 
-    int maxWidth = bw - 2;
-    int fillWidth = map(_currentBattery, 0, 100, 0, maxWidth);
-    
-    // Red color if battery is critical (<= 20%), green otherwise
-    uint16_t color = (_currentBattery > 20) ? 0x07E0 : 0xF800;
+    const int maxWidth  = BATT_W - 2;
+    const int fillWidth = map(currentBattery, 0, 100, 0, maxWidth);
 
-    // Draw filled battery level
+    const uint16_t fillColor = (currentBattery > BATT_LOW_PCT) ? Colors::GREEN : Colors::RED;
+
+    // Filled portion (current charge)
     if (fillWidth > 0) {
-        screen.fillRect(bx + 1, by + 1, fillWidth, bh - 2, color);
+        screen.fillRect(BATT_X + 1, BATT_Y + 1, fillWidth, BATT_H - 2, fillColor);
     }
-
-    // Clear the remaining empty space inside the battery
+    // Remaining empty portion (clear so old levels don't bleed through)
     if (fillWidth < maxWidth) {
-        screen.fillRect(bx + 1 + fillWidth, by + 1, maxWidth - fillWidth, bh - 2, 0x0000);
+        screen.fillRect(BATT_X + 1 + fillWidth, BATT_Y + 1, maxWidth - fillWidth, BATT_H - 2, Colors::BLACK);
     }
 }
 
 void DisplayManager::setBrightness(uint8_t level) {
     if (level > 100) level = 100;
-    
-    // Store current brightness level for later reference
-    _currentBrightness = level; 
-    
+    currentBrightness = level;
+
     // Map 0-100% to 0-255 for the PWM signal
-    int dutyCycle = map(level, 0, 100, 0, 255);
+    const int dutyCycle = map(level, 0, 100, 0, 255);
     analogWrite(PinConfig::DISP_BLK, dutyCycle);
 }
 
 void DisplayManager::setBatteryLevel(int level) {
-    _currentBattery = level; 
+    currentBattery = level;
 }
 
 void DisplayManager::drawProgressBar(unsigned long current, unsigned long maxVal, uint16_t color) {
     if (maxVal == 0) return;
     if (current > maxVal) current = maxVal;
-    
-    // Calculate bar width (max 160 pixels wide)
-    int barWidth = (current * 160) / maxVal;
-    
-    // Draw only if width is greater than 0
+
+    const int barWidth = (current * SCREEN_W) / maxVal;
+
     if (barWidth > 0) {
-        screen.fillRect(0, 126, barWidth, 2, color);
+        screen.fillRect(0, PROGRESS_Y, barWidth, PROGRESS_H, color);
     }
 }
 
 void DisplayManager::clearProgressBar() {
-    // Overwrite the entire bottom progress bar area with black
-    screen.fillRect(0, 126, 160, 2, 0x0000);
+    screen.fillRect(0, PROGRESS_Y, SCREEN_W, PROGRESS_H, Colors::BLACK);
 }

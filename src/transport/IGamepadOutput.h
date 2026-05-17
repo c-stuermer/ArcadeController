@@ -1,5 +1,5 @@
 /**
- * Project: Arcade Controller V1.1
+ * Project: Arcade Controller V1.2
  * File: IGamepadOutput.h
  * Description: Interface for gamepad drivers. BLE-HID implemented;
  *              a Switch 2 profile is planned (see Roadmap).

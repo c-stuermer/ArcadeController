@@ -1,5 +1,5 @@
 /**
- * Project: Arcade Controller V1.1
+ * Project: Arcade Controller V1.2
  * File: apps/AppManager.h
  * Description: Owns the InputHandler and all App instances. Routes hardware
  *              input to the currently active App and handles app switching.
@@ -30,8 +30,7 @@ private:
     InputMonitorApp  inputMonitorApp;
     SpaceInvadersApp spaceInvadersApp;
 
-    App*  currentApp   = nullptr;
-    AppId currentAppId = AppId::Menu;  // valid only while currentApp != nullptr
+    App* currentApp = nullptr;
 
 public:
     explicit AppManager(ISystem* sys)
@@ -46,7 +45,6 @@ public:
 
     // --- App switching ---
     void startApp(AppId id);
-    bool isCurrent(AppId id) const;
 
     // Direct accessor for the boot sequence in ArcadeController.
     BluetoothApp* getBluetoothApp() { return &bluetoothApp; }

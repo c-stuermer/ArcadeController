@@ -1,5 +1,5 @@
 /**
- * Project: Arcade Controller V1.1
+ * Project: Arcade Controller V1.2
  * File: SoundManager.h
  * Description: Manages audio effects using ESP32 hardware PWM (LEDC).
  */
@@ -18,23 +18,7 @@ enum class SoundEffect {
 };
 
 class SoundManager {
-private:
-    uint8_t _pin;
-    uint8_t _channel;
-    uint8_t _volume;
-
-    SoundEffect _currentEffect;
-    unsigned long _startTime;
-    int _duration;
-
-    // --- Internal synthesis methods ---
-    void updateLaser();
-    void updateClick();
-    void updateStartup();
-    void updateExplosion();
-
 public:
-
     // Constructor for SoundManager.
     SoundManager(uint8_t pin = PinConfig::SOUND_PWM_PIN, uint8_t channel = PinConfig::SOUND_CHANNEL);
 
@@ -45,11 +29,26 @@ public:
     void play(SoundEffect effect);
 
     // Processes the active sound effect. Must be called in the main loop.
-    void update(); 
+    void update();
 
     // Immediately stops any currently playing sound.
     void stop();
 
     // Sets the system volume.
-    void setVolume(uint8_t vol) { _volume = vol; }
+    void setVolume(uint8_t vol) { volume = vol; }
+
+private:
+    uint8_t pin;
+    uint8_t channel;
+    uint8_t volume;
+
+    SoundEffect   currentEffect;
+    unsigned long startTime;
+    int           duration;
+
+    // --- Internal synthesis methods ---
+    void updateLaser();
+    void updateClick();
+    void updateStartup();
+    void updateExplosion();
 };

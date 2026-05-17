@@ -1,5 +1,5 @@
 /**
- * Project: Arcade Controller V1.1
+ * Project: Arcade Controller V1.2
  * File: Config.h
  * Description: Global hardware pinout and event definitions.
  *
@@ -30,7 +30,22 @@ namespace PinConfig {
 
     // --- Bus Settings ---
     constexpr int MCP_ADDRESS = 0x20;
-    constexpr int DEFAULT_DEBOUNCE_MS = 15;
+
+    // --- Debounce timing ---
+    // DEFAULT_DEBOUNCE_MS  : minimum stable LOW time before a release is accepted.
+    //
+    // Post-release hold-off (dead-zone after release in which no new press
+    // fires) is applied per input class:
+    //   - ARCADE_RELEASE_HOLDOFF_MS   = 0  -> off, full eager-press latency.
+    //     Arcade buttons are tapped quickly; chatter is not observed in
+    //     practice and a hold-off would just block legitimate fast double-taps.
+    //   - JOYSTICK_RELEASE_HOLDOFF_MS = 100 -> targeted at pre-snap contact
+    //     chatter on Sanwa-style microswitches during slow joystick releases,
+    //     where the contact briefly re-closes after the debounce window has
+    //     already accepted the release. 
+    constexpr int DEFAULT_DEBOUNCE_MS          = 15;
+    constexpr int ARCADE_RELEASE_HOLDOFF_MS    = 0;
+    constexpr int JOYSTICK_RELEASE_HOLDOFF_MS  = 100;
 
     // --- MCP23017 Button Mapping ---
     // Note: These use internal pull-ups (LOW = Pressed)
@@ -103,23 +118,3 @@ enum class ControlEvent {
     JOY_RIGHT,
     NONE
 };
-
-inline const char* eventToString(ControlEvent ev) {
-    switch(ev) {
-        case ControlEvent::BTN_A:      return "BTN_A";
-        case ControlEvent::BTN_B:      return "BTN_B";
-        case ControlEvent::BTN_X:      return "BTN_X";
-        case ControlEvent::BTN_Y:      return "BTN_Y";
-        case ControlEvent::BTN_L1:     return "BTN_L1";
-        case ControlEvent::BTN_R1:     return "BTN_R1";
-        case ControlEvent::BTN_L2:     return "BTN_L2";
-        case ControlEvent::BTN_R2:     return "BTN_R2";
-        case ControlEvent::BTN_SELECT: return "BTN_SELECT";
-        case ControlEvent::BTN_START:  return "BTN_START";
-        case ControlEvent::JOY_UP:     return "JOY_UP";
-        case ControlEvent::JOY_DOWN:   return "JOY_DOWN";
-        case ControlEvent::JOY_LEFT:   return "JOY_LEFT";
-        case ControlEvent::JOY_RIGHT:  return "JOY_RIGHT";
-        default:                       return "NONE";
-    }
-}

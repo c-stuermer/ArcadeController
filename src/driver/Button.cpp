@@ -1,18 +1,25 @@
 /**
- * Project: Arcade Controller V1.1
+ * Project: Arcade Controller V1.2
  * File: Button.cpp
  * Description: Implementation of eager-press debounce logic.
  */
 
 #include "Button.h"
 
-Button::Button(unsigned long debounceMs) : debounceDelay(debounceMs) {
-    // Initial state setup if needed
-}
+Button::Button(PinType type,
+               uint8_t pin,
+               ControlEvent eventId,
+               unsigned long debounceMs,
+               unsigned long releaseHoldoffMs)
+    : type(type),
+      pin(pin),
+      eventId(eventId),
+      debounceDelay(debounceMs),
+      releaseHoldoff(releaseHoldoffMs) {}
 
 void Button::update(bool currentReading) {
     // Save the state from the PREVIOUS frame to detect edges later
-    lastDebouncedState = debouncedState; 
+    lastDebouncedState = debouncedState;
 
     // Reset the debounce timer as long as the physical signal is fluctuating
     if (currentReading != lastRawReading) {
@@ -20,21 +27,29 @@ void Button::update(bool currentReading) {
     }
     lastRawReading = currentReading;
 
-    // --- 1. EAGER PRESS (0 ms latency) ---
+    // --- 1. EAGER PRESS (0 ms latency, but gated by post-release hold-off) ---
     // If the signal is active and we were previously considered 'released':
     if (currentReading == true && debouncedState == false) {
-        debouncedState = true;           // Fire immediately!
-        pressStartTime = millis();
-        _lastPressDuration = 0; 
+        // Post-release hold-off: ignore press edges that arrive within
+        // 'releaseHoldoff' ms of the last accepted release. Prevents
+        // pre-snap contact chatter on slow microswitch releases from
+        // latching as a phantom press immediately after the real release.
+        if (releaseTime != 0 && (millis() - releaseTime) < releaseHoldoff) {
+            return;   // still in dead-zone, drop this would-be press edge
+        }
+        debouncedState    = true;           // Fire immediately!
+        pressStartTime    = millis();
+        lastPressDuration = 0;
     }
     // --- 2. DELAYED RELEASE (Stability Check) ---
     // If the signal is gone, but we are still considered 'pressed':
     else if (currentReading == false && debouncedState == true) {
-        // We ONLY accept the release if the signal has been uninterruptedly 
+        // ONLY accept the release if the signal has been uninterruptedly
         // false for the duration of 'debounceDelay'.
         if ((millis() - lastDebounceTime) >= debounceDelay) {
-            debouncedState = false;
-            _lastPressDuration = millis() - pressStartTime;
+            debouncedState    = false;
+            lastPressDuration = millis() - pressStartTime;
+            releaseTime       = millis();   // start the post-release hold-off window
         }
     }
 }
@@ -61,5 +76,5 @@ unsigned long Button::getActiveDuration() const {
 }
 
 unsigned long Button::getLastPressDuration() const {
-    return _lastPressDuration;
+    return lastPressDuration;
 }

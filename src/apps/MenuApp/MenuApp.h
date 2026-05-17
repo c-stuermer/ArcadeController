@@ -1,5 +1,5 @@
 /**
- * Project: Arcade Controller V1.1
+ * Project: Arcade Controller V1.2
  * File: MenuApp.h
  * Description: The main system menu application handling categories and dynamic settings.
  */

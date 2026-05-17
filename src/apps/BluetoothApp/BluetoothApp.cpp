@@ -1,5 +1,5 @@
 /**
- * Project: Arcade Controller V1.1
+ * Project: Arcade Controller V1.2
  * File: apps/BluetoothApp/BluetoothApp.cpp
  * Description: Owns the gamepad transport (BLE-HID; Switch 2 planned) and
  *              provides the local Bluetooth UI / state machine that the
@@ -10,6 +10,7 @@
 #include "../ISystem.h"
 #include "../AppManager.h"
 #include "../AppId.h"
+#include "../../config/Colors.h"
 #include "../../hal/SettingsManager.h"
 #include "../../hal/PowerManager.h"
 #include "../../hal/DisplayManager.h"
@@ -72,7 +73,7 @@ void BluetoothApp::update() {
         unsigned long comboTime = min(durSel, min(durL2, durR2));
 
         // Draw progress bar (Red for "Exit")
-        disp->drawProgressBar(comboTime, 2000, 0xF800);
+        disp->drawProgressBar(comboTime, 2000, Colors::RED);
 
         if (comboTime >= 2000) {
             disp->clearProgressBar();
@@ -116,47 +117,52 @@ void BluetoothApp::stop() {
 void BluetoothApp::onInput(ControlEvent ev, EventType type) {
     if (!active) return;
 
-    // Ignore non-press events unless we are actively passing through
+    // Outside CONNECTED state, only the press-edge drives the UI -- otherwise
+    // every button would fire twice (once on press, once on release).
     if (type != EventType::PRESSED && currentState != BtState::CONNECTED) return;
 
-    // --- STATE: CONNECTED (passthrough to host) ---
-    if (currentState == BtState::CONNECTED) {
-        if (type == EventType::PRESSED)       active->press(ev);
-        else if (type == EventType::RELEASED) active->release(ev);
-        return;
-    }
+    switch (currentState) {
 
-    // --- STATE: IDLE (BT sleeping) ---
-    if (currentState == BtState::IDLE) {
-        if (ev == ControlEvent::BTN_B) {
-            system->getAppManager()->startApp(AppId::Menu);
-        } else if (ev == ControlEvent::BTN_A) {
-            currentState = BtState::PAIRING;
-            active->startAdvertising();
-        } else if (ev == ControlEvent::BTN_X) {
-            NimBLEDevice::deleteAllBonds();
-        }
-    }
-    // --- STATE: PAIRING (waiting for host) ---
-    else if (currentState == BtState::PAIRING) {
-        if (ev == ControlEvent::BTN_B) {
-            currentState = BtState::IDLE;
-            active->stopAdvertising();
-        }
-    }
-    // --- STATE: PAUSED (local overlay menu) ---
-    else if (currentState == BtState::PAUSED) {
-        if (ev == ControlEvent::BTN_B) {
-            currentState = BtState::CONNECTED;  // Back to game
-        } else if (ev == ControlEvent::BTN_A) {
-            // Full stop: disconnect AND stop broadcasting
-            active->disconnect();
-            active->stopAdvertising();
-            currentState = BtState::IDLE;
-        } else if (ev == ControlEvent::BTN_START) {
-            // Quit to main menu but stay connected in the background
-            system->getAppManager()->startApp(AppId::Menu);
-        }
+        // --- CONNECTED: passthrough to host ---
+        case BtState::CONNECTED:
+            if (type == EventType::PRESSED)       active->press(ev);
+            else if (type == EventType::RELEASED) active->release(ev);
+            break;
+
+        // --- IDLE: BT sleeping, waiting for user to start pairing ---
+        case BtState::IDLE:
+            if (ev == ControlEvent::BTN_B) {
+                system->getAppManager()->startApp(AppId::Menu);
+            } else if (ev == ControlEvent::BTN_A) {
+                currentState = BtState::PAIRING;
+                active->startAdvertising();
+            } else if (ev == ControlEvent::BTN_X) {
+                NimBLEDevice::deleteAllBonds();
+            }
+            break;
+
+        // --- PAIRING: advertising, waiting for host to connect ---
+        case BtState::PAIRING:
+            if (ev == ControlEvent::BTN_B) {
+                currentState = BtState::IDLE;
+                active->stopAdvertising();
+            }
+            break;
+
+        // --- PAUSED: local overlay menu while a host is connected ---
+        case BtState::PAUSED:
+            if (ev == ControlEvent::BTN_B) {
+                currentState = BtState::CONNECTED;          // Back to game
+            } else if (ev == ControlEvent::BTN_A) {
+                // Full stop: disconnect AND stop broadcasting
+                active->disconnect();
+                active->stopAdvertising();
+                currentState = BtState::IDLE;
+            } else if (ev == ControlEvent::BTN_START) {
+                // Quit to main menu but stay connected in the background
+                system->getAppManager()->startApp(AppId::Menu);
+            }
+            break;
     }
 }
 
@@ -204,76 +210,81 @@ void BluetoothApp::drawScreen() {
     auto disp = system->getDisplay();
     auto gfx  = disp->getGfx();
 
-    gfx->fillScreen(0x0000);
+    gfx->fillScreen(Colors::BLACK);
     disp->drawHeader("BLUETOOTH");
 
     // UI Layout Variables (no horizontal lines, V0.2 spacing)
-    int titleY      = 26;
-    int textY       = 50;
-    int lineSpacing = 18;
+    const int titleY      = 26;
+    const int textY       = 50;
+    const int lineSpacing = 18;
 
     gfx->setTextSize(1);
 
-    if (currentState == BtState::IDLE) {
-        gfx->setTextColor(0x7BEF);
-        gfx->drawString("STANDBY", 10, titleY);
-
-        gfx->setTextColor(0xFFFF);
-        gfx->drawString("[A] Connect / Search", 10, textY);
-        gfx->drawString("[X] Clear old Bonds", 10, textY + lineSpacing);
-
-        gfx->setTextColor(0xF800);  // Red exit hint
-        gfx->drawString("[B] Exit to Menu", 10, 105);
-
-    } else if (currentState == BtState::PAIRING) {
-        gfx->setTextColor(0xFFE0);
-        gfx->drawString("SEARCHING...", 10, titleY);
-
-        gfx->setTextColor(0xFFFF);
-        gfx->drawString("Make sure Pi/PC", 10, textY);
-        gfx->drawString("is ready to pair.", 10, textY + 12);
-
-        gfx->setTextColor(0x7BEF);
-        gfx->drawString("[B] Cancel", 10, 105);
-
-    } else if (currentState == BtState::CONNECTED) {
-        gfx->setTextColor(0x07E0);
-        gfx->drawString("CONNECTED", 10, titleY);
-
-        // --- Read HOST MAC Address ---
-        String peerMac = "UNKNOWN";
-        auto server = NimBLEDevice::getServer();
-        if (server && server->getConnectedCount() > 0) {
+    // Peer MAC is shown in both CONNECTED and PAUSED. drawScreen() is only
+    // called on state change, so reading once up-front (even when unused) is
+    // cheaper than two duplicated blocks below.
+    String peerMac = "UNKNOWN";
+    if (auto* server = NimBLEDevice::getServer()) {
+        if (server->getConnectedCount() > 0) {
             peerMac = String(server->getPeerInfo(0).getAddress().toString().c_str());
             peerMac.toUpperCase();
         }
-        gfx->setTextColor(0xFFFF);
-        gfx->drawString("HOST: " + peerMac, 10, textY);
+    }
 
-        // Combo Info
-        gfx->setTextColor(0xF800);
-        gfx->drawString("[SELECT] + [L2] + [R2]", 10, 105);
+    switch (currentState) {
 
-    } else if (currentState == BtState::PAUSED) {
-        gfx->setTextColor(0xF800);
-        gfx->drawString("SYSTEM PAUSED", 10, titleY);
+        // --- IDLE: standby screen with pairing / bond-clear hints ---
+        case BtState::IDLE:
+            gfx->setTextColor(Colors::GREY);
+            gfx->drawString("STANDBY", 10, titleY);
 
-        // --- Read HOST MAC Address ---
-        String peerMac = "UNKNOWN";
-        auto server = NimBLEDevice::getServer();
-        if (server && server->getConnectedCount() > 0) {
-            peerMac = String(server->getPeerInfo(0).getAddress().toString().c_str());
-            peerMac.toUpperCase();
-        }
-        gfx->setTextColor(0xFFFF);
-        gfx->drawString("HOST: " + peerMac, 10, textY);
+            gfx->setTextColor(Colors::WHITE);
+            gfx->drawString("[A] Connect / Search", 10, textY);
+            gfx->drawString("[X] Clear old Bonds",  10, textY + lineSpacing);
 
-        // Buttons
-        gfx->setTextColor(0x07E0);  // Green for Resume
-        gfx->drawString("[B] Resume Game", 10, textY + lineSpacing + 4);
+            gfx->setTextColor(Colors::RED);  // Red exit hint
+            gfx->drawString("[B] Exit to Menu", 10, 105);
+            break;
 
-        gfx->setTextColor(0xFFFF);
-        gfx->drawString("[A] Disconnect", 10, textY + (lineSpacing * 2) + 4);
-        gfx->drawString("[START] Quit to Menu", 10, textY + (lineSpacing * 3) + 4);
+        // --- PAIRING: searching for a host ---
+        case BtState::PAIRING:
+            gfx->setTextColor(Colors::YELLOW);
+            gfx->drawString("SEARCHING...", 10, titleY);
+
+            gfx->setTextColor(Colors::WHITE);
+            gfx->drawString("Make sure Pi/PC",    10, textY);
+            gfx->drawString("is ready to pair.",  10, textY + 12);
+
+            gfx->setTextColor(Colors::GREY);
+            gfx->drawString("[B] Cancel", 10, 105);
+            break;
+
+        // --- CONNECTED: passthrough active, show host + exit combo ---
+        case BtState::CONNECTED:
+            gfx->setTextColor(Colors::GREEN);
+            gfx->drawString("CONNECTED", 10, titleY);
+
+            gfx->setTextColor(Colors::WHITE);
+            gfx->drawString("HOST: " + peerMac, 10, textY);
+
+            gfx->setTextColor(Colors::RED);
+            gfx->drawString("[SELECT] + [L2] + [R2]", 10, 105);
+            break;
+
+        // --- PAUSED: overlay menu while still connected ---
+        case BtState::PAUSED:
+            gfx->setTextColor(Colors::RED);
+            gfx->drawString("SYSTEM PAUSED", 10, titleY);
+
+            gfx->setTextColor(Colors::WHITE);
+            gfx->drawString("HOST: " + peerMac, 10, textY);
+
+            gfx->setTextColor(Colors::GREEN);  // Green for Resume
+            gfx->drawString("[B] Resume Game",     10, textY + lineSpacing + 4);
+
+            gfx->setTextColor(Colors::WHITE);
+            gfx->drawString("[A] Disconnect",      10, textY + (lineSpacing * 2) + 4);
+            gfx->drawString("[START] Quit to Menu", 10, textY + (lineSpacing * 3) + 4);
+            break;
     }
 }

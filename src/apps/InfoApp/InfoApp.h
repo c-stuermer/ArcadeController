@@ -1,5 +1,5 @@
 /**
- * Project: Arcade Controller V1.1
+ * Project: Arcade Controller V1.2
  * File: InfoApp.h
  * Description: Displays system information (hardware, firmware, battery, MAC).
  */
@@ -19,10 +19,9 @@ public:
 
 private:
     unsigned long lastUpdate = 0;
-    bool drawFirstTime = true;
-    
+
     // Firmware version (single source of truth, displayed in InfoApp)
-    const char* FIRMWARE_VERSION = "v1.0";
+    const char* FIRMWARE_VERSION = "V1.2";
 
     void drawScreen();
 };

@@ -1,5 +1,5 @@
 /**
- * Project: Arcade Controller V1.1
+ * Project: Arcade Controller V1.2
  * File: apps/AppManager.cpp
  */
 
@@ -27,13 +27,8 @@ void AppManager::startApp(AppId id) {
     if (currentApp == next) return;
 
     if (currentApp) currentApp->stop();
-    currentApp   = next;
-    currentAppId = id;
+    currentApp = next;
     currentApp->start();
-}
-
-bool AppManager::isCurrent(AppId id) const {
-    return currentApp != nullptr && currentAppId == id;
 }
 
 App* AppManager::resolveApp(AppId id) {

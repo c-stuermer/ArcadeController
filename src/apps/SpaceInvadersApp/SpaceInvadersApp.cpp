@@ -1,11 +1,12 @@
 /**
- * Project: Arcade Controller V1.1
+ * Project: Arcade Controller V1.2
  * File: apps/SpaceInvadersApp/SpaceInvadersApp.cpp
  */
 
 #include "SpaceInvadersApp.h"
 #include "../ISystem.h"
 #include "../AppManager.h"
+#include "../../config/Colors.h"
 #include "../../hal/DisplayManager.h"
 #include "../../hal/InputHandler.h"
 #include "../../hal/SoundManager.h"
@@ -14,7 +15,7 @@
 void SpaceInvadersApp::start() {
     Serial.println("[APP] SpaceInvadersApp starting...");
     auto* gfx = system->getDisplay()->getGfx();
-    gfx->fillScreen(0x0000); // Clear the screen once at start
+    gfx->fillScreen(Colors::BLACK); // Clear the screen once at start
     currentState = GameState::TITLE;
     drawTitleScreen();
 }
@@ -25,7 +26,7 @@ void SpaceInvadersApp::stop() {
 
 void SpaceInvadersApp::initGame() {
     auto* gfx = system->getDisplay()->getGfx();
-    gfx->fillScreen(0x0000);
+    gfx->fillScreen(Colors::BLACK);
 
     // Player setup
     player.x = gfx->width() / 2 - 8;
@@ -63,7 +64,7 @@ void SpaceInvadersApp::update() {
 
     if (durSel > 0 && durL2 > 0 && durR2 > 0) {
         unsigned long comboTime = min(durSel, min(durL2, durR2));
-        system->getDisplay()->drawProgressBar(comboTime, 2000, 0xF800);
+        system->getDisplay()->drawProgressBar(comboTime, 2000, Colors::RED);
 
         if (comboTime >= 2000) {
             system->getDisplay()->clearProgressBar();
@@ -85,21 +86,21 @@ void SpaceInvadersApp::update() {
     lastFrameTime = millis();
 
     // 2. PLAYER & BULLET
-    player.draw(gfx, 0x0000); // Erase
+    player.draw(gfx, Colors::BLACK); // Erase
     if (moveLeft) player.move(-3, gfx->width());
     if (moveRight) player.move(3, gfx->width());
-    player.draw(gfx, 0x07E0); // Draw
+    player.draw(gfx, Colors::GREEN); // Draw
 
-    bullet.draw(gfx, 0x0000);
+    bullet.draw(gfx, Colors::BLACK);
     bullet.update();
-    bullet.draw(gfx, 0xFFFF);
+    bullet.draw(gfx, Colors::WHITE);
 
     // 3. ALIEN BOMBS
     for (auto& b : bombs) {
-        b.draw(gfx, 0x0000);
+        b.draw(gfx, Colors::BLACK);
         b.update();
         if (b.active) {
-            b.draw(gfx, 0xFBE0);
+            b.draw(gfx, Colors::ORANGE);
             // Check collision with player
             if (b.x > player.x && b.x < player.x + 16 && b.y > player.y && b.y < player.y + 8) {
                 currentState = GameState::GAMEOVER;
@@ -113,7 +114,7 @@ void SpaceInvadersApp::update() {
     if (millis() - lastAlienMove > 500) {
         lastAlienMove = millis();
         animationFrame = !animationFrame;
-        gfx->fillScreen(0x0000);
+        gfx->fillScreen(Colors::BLACK);
 
         bool hitEdge = false;
         for (auto& a : aliens) {
@@ -175,11 +176,11 @@ void SpaceInvadersApp::onInput(ControlEvent ev, EventType type) {
         }
     }
     else if (currentState == GameState::PAUSED && ev == ControlEvent::BTN_START) {
-        system->getDisplay()->getGfx()->fillScreen(0x0000);
+        system->getDisplay()->getGfx()->fillScreen(Colors::BLACK);
         currentState = GameState::PLAYING;
     }
     else if (currentState == GameState::GAMEOVER && ev == ControlEvent::BTN_START) {
-        system->getDisplay()->getGfx()->fillScreen(0x0000);
+        system->getDisplay()->getGfx()->fillScreen(Colors::BLACK);
         currentState = GameState::TITLE;
         drawTitleScreen();
     }
@@ -189,16 +190,16 @@ void SpaceInvadersApp::onInput(ControlEvent ev, EventType type) {
 
 void SpaceInvadersApp::drawTitleScreen() {
     auto* gfx = system->getDisplay()->getGfx();
-    gfx->fillScreen(0x0000);
+    gfx->fillScreen(Colors::BLACK);
 
     gfx->setTextSize(2);
-    gfx->setTextColor(0x07E0); // Green
+    gfx->setTextColor(Colors::GREEN); // Green
     gfx->drawString("SPACE", 50, 10);
     gfx->drawString("INVADERS", 32, 30);
 
     gfx->setTextSize(1);
-    gfx->setTextColor(0xFFFF);
-    gfx->drawString("V1.1 ARCADE EDITION", 25, 115);
+    gfx->setTextColor(Colors::WHITE);
+    gfx->drawString("V1.2 ARCADE EDITION", 25, 115);
 }
 
 void SpaceInvadersApp::updateTitleAnimation() {
@@ -212,7 +213,7 @@ void SpaceInvadersApp::updateTitleAnimation() {
         lastTitleAnim = millis();
 
         // Clear the area used by the large aliens (32 px tall instead of 20)
-        gfx->fillRect(0, 60, 160, 35, 0x0000);
+        gfx->fillRect(0, 60, 160, 35, Colors::BLACK);
 
         titleX += (titleDir * 2);
         // Adjust the edge check to the larger overall width (~110 px)
@@ -233,7 +234,7 @@ void SpaceInvadersApp::updateTitleAnimation() {
                 uint16_t rowData = (pgm_read_byte(&sprite[y * 2]) << 8) | pgm_read_byte(&sprite[y * 2 + 1]);
                 for (int x = 0; x < 16; x++) {
                     if (rowData & (1 << (15 - x))) {
-                        gfx->fillRect(xPos + (x * scale), 65 + (y * scale), scale, scale, 0xF800);
+                        gfx->fillRect(xPos + (x * scale), 65 + (y * scale), scale, scale, Colors::RED);
                     }
                 }
             }
@@ -244,24 +245,24 @@ void SpaceInvadersApp::updateTitleAnimation() {
 void SpaceInvadersApp::drawPauseScreen() {
     auto* gfx = system->getDisplay()->getGfx();
     // Draw a box over the game instead of clearing the whole screen
-    gfx->fillRect(30, 40, 100, 40, 0x0000);
-    gfx->drawRect(30, 40, 100, 40, 0xFFFF);
+    gfx->fillRect(30, 40, 100, 40, Colors::BLACK);
+    gfx->drawRect(30, 40, 100, 40, Colors::WHITE);
 
     gfx->setTextSize(2);
-    gfx->setTextColor(0xFFE0); // Yellow
+    gfx->setTextColor(Colors::YELLOW); // Yellow
     gfx->drawString("PAUSED", 44, 52);
 }
 
 void SpaceInvadersApp::drawGameOverScreen() {
     auto* gfx = system->getDisplay()->getGfx();
-    gfx->fillScreen(0x0000);
+    gfx->fillScreen(Colors::BLACK);
 
     gfx->setTextSize(2);
-    gfx->setTextColor(0xF800); // Red
+    gfx->setTextColor(Colors::RED); // Red
     gfx->drawString("GAME OVER", 26, 30);
 
     gfx->setTextSize(1);
-    gfx->setTextColor(0xFFFF);
+    gfx->setTextColor(Colors::WHITE);
     gfx->drawString("Score: " + String(score), 55, 60);
     gfx->drawString("PRESS START", 45, 100);
 }
