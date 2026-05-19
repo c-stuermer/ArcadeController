@@ -118,3 +118,40 @@ enum class ControlEvent {
     JOY_RIGHT,
     NONE
 };
+
+/////////////////////////
+// INPUT REGISTRY      //
+/////////////////////////
+
+namespace PinConfig {
+
+    // Pairing of a hardware pin and its logical event. The arrays below are
+    // the single source of truth for all controller inputs; the InputHandler
+    // iterates them at startup to build its Button list. Adding a new input
+    // means adding exactly one row here.
+    struct InputDef {
+        HardwarePin  hw;
+        ControlEvent event;
+    };
+
+    constexpr InputDef ARCADE_INPUTS[] = {
+        { ARCADE_A,      ControlEvent::BTN_A      },
+        { ARCADE_B,      ControlEvent::BTN_B      },
+        { ARCADE_X,      ControlEvent::BTN_X      },
+        { ARCADE_Y,      ControlEvent::BTN_Y      },
+        { ARCADE_L1,     ControlEvent::BTN_L1     },
+        { ARCADE_R1,     ControlEvent::BTN_R1     },
+        { ARCADE_L2,     ControlEvent::BTN_L2     },
+        { ARCADE_R2,     ControlEvent::BTN_R2     },
+        { ARCADE_SELECT, ControlEvent::BTN_SELECT },
+        { ARCADE_START,  ControlEvent::BTN_START  },
+    };
+
+    constexpr InputDef JOYSTICK_INPUTS[] = {
+        { JOYSTICK_UP,    ControlEvent::JOY_UP    },
+        { JOYSTICK_DOWN,  ControlEvent::JOY_DOWN  },
+        { JOYSTICK_LEFT,  ControlEvent::JOY_LEFT  },
+        { JOYSTICK_RIGHT, ControlEvent::JOY_RIGHT },
+    };
+
+}

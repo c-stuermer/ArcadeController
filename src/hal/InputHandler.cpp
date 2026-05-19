@@ -7,32 +7,29 @@
 #include "InputHandler.h"
 
 InputHandler::InputHandler() {
-    const unsigned long d   = PinConfig::DEFAULT_DEBOUNCE_MS;
-    const unsigned long h_a = PinConfig::ARCADE_RELEASE_HOLDOFF_MS;    // 0  -> off
-    const unsigned long h_j = PinConfig::JOYSTICK_RELEASE_HOLDOFF_MS;  // 50 -> pre-snap chatter mitigation
-
-    // 14 buttons total (10 arcade + 4 joystick directions).
-    // The power switch is polled directly by PowerManager via digitalRead()
-    // and is intentionally not part of this list.
-    buttons.reserve(14);
+    // The input lists live in Config.h (single source of truth). The power
+    // switch is polled directly by PowerManager via digitalRead() and is
+    // intentionally not part of this registry.
+    buttons.reserve(sizeof(PinConfig::ARCADE_INPUTS)   / sizeof(PinConfig::ARCADE_INPUTS[0])
+                  + sizeof(PinConfig::JOYSTICK_INPUTS) / sizeof(PinConfig::JOYSTICK_INPUTS[0]));
 
     // --- Arcade Buttons --- (no hold-off: tapped quickly, chatter not observed)
-    buttons.emplace_back(PinConfig::ARCADE_A.type,      PinConfig::ARCADE_A.pin,      ControlEvent::BTN_A,      d, h_a);
-    buttons.emplace_back(PinConfig::ARCADE_B.type,      PinConfig::ARCADE_B.pin,      ControlEvent::BTN_B,      d, h_a);
-    buttons.emplace_back(PinConfig::ARCADE_X.type,      PinConfig::ARCADE_X.pin,      ControlEvent::BTN_X,      d, h_a);
-    buttons.emplace_back(PinConfig::ARCADE_Y.type,      PinConfig::ARCADE_Y.pin,      ControlEvent::BTN_Y,      d, h_a);
-    buttons.emplace_back(PinConfig::ARCADE_L1.type,     PinConfig::ARCADE_L1.pin,     ControlEvent::BTN_L1,     d, h_a);
-    buttons.emplace_back(PinConfig::ARCADE_R1.type,     PinConfig::ARCADE_R1.pin,     ControlEvent::BTN_R1,     d, h_a);
-    buttons.emplace_back(PinConfig::ARCADE_L2.type,     PinConfig::ARCADE_L2.pin,     ControlEvent::BTN_L2,     d, h_a);
-    buttons.emplace_back(PinConfig::ARCADE_R2.type,     PinConfig::ARCADE_R2.pin,     ControlEvent::BTN_R2,     d, h_a);
-    buttons.emplace_back(PinConfig::ARCADE_SELECT.type, PinConfig::ARCADE_SELECT.pin, ControlEvent::BTN_SELECT, d, h_a);
-    buttons.emplace_back(PinConfig::ARCADE_START.type,  PinConfig::ARCADE_START.pin,  ControlEvent::BTN_START,  d, h_a);
+    for (const auto& in : PinConfig::ARCADE_INPUTS) {
+        buttons.emplace_back(in.hw.type, 
+                             in.hw.pin, 
+                             in.event,
+                             PinConfig::DEFAULT_DEBOUNCE_MS,
+                             PinConfig::ARCADE_RELEASE_HOLDOFF_MS);
+    }
 
     // --- Joystick --- (hold-off active: suppresses pre-snap microswitch chatter)
-    buttons.emplace_back(PinConfig::JOYSTICK_UP.type,    PinConfig::JOYSTICK_UP.pin,    ControlEvent::JOY_UP,    d, h_j);
-    buttons.emplace_back(PinConfig::JOYSTICK_DOWN.type,  PinConfig::JOYSTICK_DOWN.pin,  ControlEvent::JOY_DOWN,  d, h_j);
-    buttons.emplace_back(PinConfig::JOYSTICK_LEFT.type,  PinConfig::JOYSTICK_LEFT.pin,  ControlEvent::JOY_LEFT,  d, h_j);
-    buttons.emplace_back(PinConfig::JOYSTICK_RIGHT.type, PinConfig::JOYSTICK_RIGHT.pin, ControlEvent::JOY_RIGHT, d, h_j);
+    for (const auto& in : PinConfig::JOYSTICK_INPUTS) {
+        buttons.emplace_back(in.hw.type, 
+                             in.hw.pin, 
+                             in.event,
+                             PinConfig::DEFAULT_DEBOUNCE_MS,
+                             PinConfig::JOYSTICK_RELEASE_HOLDOFF_MS);
+    }
 }
 
 void InputHandler::begin() {

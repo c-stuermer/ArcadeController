@@ -18,7 +18,6 @@ class InputHandler {
 public:
     // Define callback type (ControlEvent, PRESSED/RELEASED)
     using EventCallback = std::function<void(ControlEvent, EventType)>;
-
     InputHandler();
 
     // Initializes the I2C bus and configures pin modes
