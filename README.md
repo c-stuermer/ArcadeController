@@ -6,6 +6,8 @@
 
 A modular, C++ based firmware for a custom-built Arcade Controller. Powered by an ESP32 with an MCP23017 I/O expander.
 
+![Arcade Controller](docs/final_product.jpg)
+
 > **V1.3 — SOLID ARCHITECTURE OVERHAUL**
 >
 > Full application of SOLID design principles across the entire codebase. The monolithic `ArcadeController` / `ISystem` god-interface has been replaced by a proper layered architecture:
@@ -31,8 +33,6 @@ A modular, C++ based firmware for a custom-built Arcade Controller. Powered by a
 > **PROJECT STATUS**
 >
 > Originally developed for a Cyber-Physical Systems module, V1.0 marks the first major release with a stable, decoupled architecture. Active development continues.
-
-![Arcade Controller](docs/final_product.jpg)
 
 ## Features
 
