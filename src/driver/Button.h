@@ -1,30 +1,30 @@
 /**
- * Project: Arcade Controller V1.2
+ * Project: Arcade Controller V1.3
  * File: Button.h
- * Description: Self-contained button entity. Owns its hardware identity
- *              (PinType + pin), its logical identity (ControlEvent) and
- *              its debounce/timing state in a single flat object.
+ * Description: Self-contained debounce entity. Owns its logical identity
+ *              (ControlEvent) and its debounce/timing state.
+ *
+ *              V1.3 change:
+ *                Button no longer carries its hardware identity (PinType,
+ *                pin number). The InputReader is now solely responsible
+ *                for translating pins into a ControlEvent-indexed bitmap;
+ *                InputHandler feeds each Button the relevant bit. Button
+ *                is purely a stateful debounce filter from this version.
  */
 
 #pragma once
 #include <Arduino.h>
-#include "../config/Config.h"   // PinType, ControlEvent
+#include "../config/Config.h"   // ControlEvent
 
 class Button {
 public:
     // --- Identity (flat, public access by design) ---
-    // Read frequently from the outside: InputHandler loops over a
-    // std::vector<Button> and reads btn.type / btn.pin / btn.eventId
-    // directly. Keeping them public removes getter ceremony; the
-    // debounce/timing state below remains private.
-    PinType      type;
-    uint8_t      pin;
+    // InputHandler iterates a std::vector<Button> and reads btn.eventId
+    // directly. The debounce/timing state below remains private.
     ControlEvent eventId;
 
-    // Constructor: full identity + optional debounce and release-holdoff overrides.
-    Button(PinType type,
-           uint8_t pin,
-           ControlEvent eventId,
+    // Constructor: logical identity + debounce/release-holdoff overrides.
+    Button(ControlEvent eventId,
            unsigned long debounceMs        = 25,
            unsigned long releaseHoldoffMs  = 20);
 

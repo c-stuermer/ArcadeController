@@ -1,5 +1,5 @@
 /**
- * Project: Arcade Controller V1.2
+ * Project: Arcade Controller V1.3
  * File: apps/AppId.h
  * Description: Stable identifiers for all available applications.
  *
@@ -15,6 +15,5 @@ enum class AppId : uint8_t {
     Menu,
     Bluetooth,
     Info,
-    InputMonitor,
-    SpaceInvaders
+    InputMonitor
 };

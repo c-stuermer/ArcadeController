@@ -1,16 +1,18 @@
 /**
- * Project: Arcade Controller V1.2
+ * Project: Arcade Controller V1.3
  * File: hal/PowerManager.h
  * Description: Battery monitoring, sleep modes, and the physical power
  *              switch. The reset button is wired to the ESP32 EN-pin
  *              (hardware reset), so it is invisible to software.
+ *              Implements the IPower interface.
  */
 
 #pragma once
 #include <Arduino.h>
 #include "../config/Config.h"
+#include "interfaces/IPower.h"
 
-class PowerManager {
+class PowerManager : public IPower {
 public:
     PowerManager();
 
@@ -18,8 +20,8 @@ public:
     void update();
 
     // --- Battery ---
-    float getBatteryVoltage()    const { return batteryVoltage; }
-    int   getBatteryPercentage() const { return batteryPercentage; }
+    float getBatteryVoltage()    const override { return batteryVoltage; }
+    int   getBatteryPercentage() const override { return batteryPercentage; }
 
     // --- Power switch state ---
     bool isSwitchedOn();

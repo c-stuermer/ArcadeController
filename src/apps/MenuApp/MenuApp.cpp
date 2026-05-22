@@ -1,128 +1,127 @@
 /**
- * Project: Arcade Controller V1.2
+ * Project: Arcade Controller V1.3
  * File: MenuApp.cpp
  * Description: Implementation of the main menu logic and rendering.
+ *              All drawing goes through the IDisplay primitives
+ *              (clear / fillRect / drawText / drawHeader). No path to
+ *              TFT_eSPI exists from this file.
  */
 
 #include "MenuApp.h"
-#include "../ISystem.h"
-#include "../AppManager.h"
 #include "../../config/Colors.h"
-#include "../../hal/DisplayManager.h"
-#include "../../hal/SoundManager.h"
-#include "../../hal/SettingsManager.h"
+
+MenuApp::MenuApp(IDisplay*      display,
+                 ISound*        sound,
+                 ISetting*      settings,
+                 IAppNavigator* appNavigator)
+    : App(),
+      display(display),
+      sound(sound),
+      settings(settings),
+      appManager(appNavigator) {}
 
 void MenuApp::start() {
     Serial.println("[APP] MenuApp starting...");
     categories.clear();
 
     // --- Category 1: APPLICATIONS ---
+    // Auto-generated from all apps registered with a non-null label.
+    // Adding a new app to the menu only requires a label in main.cpp.
     MenuCategory apps;
     apps.title = "APPLICATIONS";
-    
-    apps.items.push_back(MenuItem{"INPUT MONITOR", [this](){
-        system->getAppManager()->startApp(AppId::InputMonitor);
-    }});
 
-    apps.items.push_back(MenuItem{"BLUETOOTH", [this](){
-        system->getAppManager()->startApp(AppId::Bluetooth);
-    }});
+    for (const auto& [id, entry] : appManager->getRegistry()) {
+        if (!entry.label) continue;
+        apps.items.push_back(MenuItem{entry.label, [this, id](){
+            appManager->switchApp(id);
+        }});
+    }
 
-    apps.items.push_back(MenuItem{"SPACE INVADERS", [this](){
-        system->getAppManager()->startApp(AppId::SpaceInvaders);
-    }});
-    
     // --- Category 2: SETTINGS ---
-    MenuCategory settings; 
-    settings.title = "SETTINGS";
-    
+    MenuCategory settingsCat;
+    settingsCat.title = "SETTINGS";
+
     // 1. SOUND (ON/OFF)
-    settings.items.push_back(MenuItem{
+    settingsCat.items.push_back(MenuItem{
         "Sound",
         [this](){
-            uint8_t vol = system->getSettings()->getVolume();
-            // Simple toggle between 0 (OFF) and 100 (ON)
+            uint8_t vol = settings->getVolume();
+            // Simple toggle between 0 (OFF) and 100 (ON).
+            // setVolume() persists AND applies in one call (observer).
             uint8_t next = (vol == 0) ? 100 : 0;
-
-            system->setVolume(next);
+            settings->setVolume(next);
             menuDirty = true;
         },
         [this](){
-            uint8_t vol = system->getSettings()->getVolume();
+            uint8_t vol = settings->getVolume();
             return (vol == 0) ? String("OFF") : String("ON");
         }
     });
 
     // 2. BRIGHTNESS (25% increments)
-    settings.items.push_back(MenuItem{
+    settingsCat.items.push_back(MenuItem{
         "Brightness",
         [this](){
-            uint8_t bright = system->getSettings()->getBrightness();
+            uint8_t bright = settings->getBrightness();
             uint8_t next = (bright >= 100) ? 25 : bright + 25;
-
-            // setBrightness persists AND applies in one call.
-            system->setBrightness(next);
+            // setBrightness() persists AND applies in one call (observer).
+            settings->setBrightness(next);
             menuDirty = true;
         },
         [this](){
-            uint8_t bright = system->getSettings()->getBrightness();
-            // Assign to string first before returning to ensure proper memory handling
+            uint8_t bright = settings->getBrightness();
             String res = String(bright) + "%";
             return res;
         }
     });
 
     // 3. BOOT MODE (NORMAL / STEALTH)
-    settings.items.push_back(MenuItem{
+    settingsCat.items.push_back(MenuItem{
         "Boot Mode",
         [this](){
-            uint8_t mode = system->getSettings()->getBootMode();
+            uint8_t mode = settings->getBootMode();
             uint8_t next = (mode == 0) ? 1 : 0;
-
-            system->setBootMode(next);
+            settings->setBootMode(next);
             menuDirty = true;
         },
         [this](){
-            uint8_t mode = system->getSettings()->getBootMode();
+            uint8_t mode = settings->getBootMode();
             return (mode == 1) ? String("NORMAL") : String("STEALTH");
         }
     });
 
     // 4. SYSTEM INFO
-    settings.items.push_back(MenuItem{"Info", [this](){
-        system->getAppManager()->startApp(AppId::Info);
+    settingsCat.items.push_back(MenuItem{"Info", [this](){
+        appManager->switchApp(AppId::Info);
     }});
 
     // Add categories to the main list
     categories.push_back(apps);
-    categories.push_back(settings);
-    
+    categories.push_back(settingsCat);
+
     // Reset selection pointers
     currentItemIndex = 0;
-    currentCatIndex = 0;
+    currentCatIndex  = 0;
 
     // Initial screen clear and force redraw
-    system->getDisplay()->getGfx()->fillScreen(Colors::BLACK);
-    menuDirty = true; 
+    display->clear();
+    menuDirty = true;
 }
 
 void MenuApp::update() {
     // Continuously draw header (handles battery updates)
-    system->getDisplay()->drawHeader(categories[currentCatIndex].title);
+    display->drawHeader(categories[currentCatIndex].title);
 
     // Only redraw the menu body if a change occurred (prevents flickering)
     if (menuDirty) {
         drawMenu();
-        menuDirty = false; 
+        menuDirty = false;
     }
 }
 
 void MenuApp::drawMenu() {
-    auto* gfx = system->getDisplay()->getGfx();
     auto& items = categories[currentCatIndex].items;
 
-    gfx->setTextSize(1); 
-    
     const int startY     = 25;
     const int lineHeight = 15;
 
@@ -140,27 +139,21 @@ void MenuApp::drawMenu() {
         // 3. Convert entirely to uppercase for retro look
         menuText.toUpperCase();
 
+        // 4. Background bar (selection highlight) + text
         if (i == currentItemIndex) {
-            // Selected item: Green background bar (14px high for text size 1), black text
-            gfx->fillRect(0, yPos - 4, 160, lineHeight, Colors::GREEN);
-            gfx->setTextColor(Colors::BLACK);
+            display->fillRect(0, yPos - 4, 160, lineHeight, Colors::GREEN);
+            display->drawText(5, yPos, menuText, Colors::BLACK, 1);
         } else {
-            // Unselected item: Black background, white text
-            gfx->fillRect(0, yPos - 4, 160, lineHeight, Colors::BLACK);
-            gfx->setTextColor(Colors::WHITE);
+            display->fillRect(0, yPos - 4, 160, lineHeight, Colors::BLACK);
+            display->drawText(5, yPos, menuText, Colors::WHITE, 1);
         }
-
-        gfx->setCursor(5, yPos);
-        
-        // 4. Draw the constructed text line
-        gfx->print(menuText);
     }
 }
 
 void MenuApp::onInput(ControlEvent ev, EventType type) {
     if (type != EventType::PRESSED) return;
 
-    system->getSound()->play(SoundEffect::CLICK);
+    sound->play(SoundEffect::CLICK);
 
     auto& currentItems = categories[currentCatIndex].items;
     bool needRedraw = false;
@@ -170,41 +163,41 @@ void MenuApp::onInput(ControlEvent ev, EventType type) {
             currentItemIndex = (currentItemIndex > 0) ? currentItemIndex - 1 : currentItems.size() - 1;
             needRedraw = true;
             break;
-            
+
         case ControlEvent::JOY_DOWN:
-            currentItemIndex = (currentItemIndex < currentItems.size() - 1) ? currentItemIndex + 1 : 0;
+            currentItemIndex = (currentItemIndex < (int)currentItems.size() - 1) ? currentItemIndex + 1 : 0;
             needRedraw = true;
             break;
-            
+
         case ControlEvent::JOY_LEFT:
             currentCatIndex = (currentCatIndex > 0) ? currentCatIndex - 1 : categories.size() - 1;
-            currentItemIndex = 0; 
-            
-            // Clear screen entirely on category change because the title bar needs to be redrawn
-            system->getDisplay()->getGfx()->fillScreen(Colors::BLACK);
-            needRedraw = true;
-            break;
-            
-        case ControlEvent::JOY_RIGHT:
-            currentCatIndex = (currentCatIndex < categories.size() - 1) ? currentCatIndex + 1 : 0;
             currentItemIndex = 0;
-            
-            system->getDisplay()->getGfx()->fillScreen(Colors::BLACK);
+
+            // Clear screen entirely on category change because the title bar needs to be redrawn
+            display->clear();
             needRedraw = true;
             break;
-            
+
+        case ControlEvent::JOY_RIGHT:
+            currentCatIndex = (currentCatIndex < (int)categories.size() - 1) ? currentCatIndex + 1 : 0;
+            currentItemIndex = 0;
+
+            display->clear();
+            needRedraw = true;
+            break;
+
         case ControlEvent::BTN_A:
         case ControlEvent::BTN_START:
-            if (currentItemIndex < currentItems.size()) {
+            if (currentItemIndex < (int)currentItems.size()) {
                 currentItems[currentItemIndex].action();
                 // Flag a redraw just in case the action changed a displayed value
-                needRedraw = true; 
+                needRedraw = true;
             }
             break;
-            
+
         default: break;
     }
-    
+
     if (needRedraw) {
         menuDirty = true;
     }

@@ -1,5 +1,5 @@
 /**
- * Project: Arcade Controller V1.2
+ * Project: Arcade Controller V1.3
  * File: Config.h
  * Description: Global hardware pinout and event definitions.
  *

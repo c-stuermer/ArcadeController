@@ -1,23 +1,18 @@
 /**
- * Project: Arcade Controller V1.2
+ * Project: Arcade Controller V1.3
  * File: SoundManager.h
  * Description: Manages audio effects using ESP32 hardware PWM (LEDC).
+ *              Implements the ISound interface. The SoundEffect enum has
+ *              moved into ISound.h so it lives with the contract that
+ *              uses it.
  */
 
 #pragma once
 #include <Arduino.h>
 #include "../config/Config.h"
+#include "interfaces/ISound.h"
 
-// Defines available sound effects for the system.
-enum class SoundEffect {
-    NONE,
-    STARTUP,
-    CLICK,
-    LASER,
-    EXPLOSION
-};
-
-class SoundManager {
+class SoundManager : public ISound {
 public:
     // Constructor for SoundManager.
     SoundManager(uint8_t pin = PinConfig::SOUND_PWM_PIN, uint8_t channel = PinConfig::SOUND_CHANNEL);
@@ -35,7 +30,7 @@ public:
     void stop();
 
     // Sets the system volume.
-    void setVolume(uint8_t vol) { volume = vol; }
+    void setVolume(uint8_t vol) override { volume = vol; }
 
 private:
     uint8_t pin;

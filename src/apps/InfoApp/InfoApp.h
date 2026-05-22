@@ -1,16 +1,21 @@
 /**
- * Project: Arcade Controller V1.2
+ * Project: Arcade Controller V1.3
  * File: InfoApp.h
  * Description: Displays system information (hardware, firmware, battery, MAC).
+ *              V1.3: interface-injected, no ISystem dependency.
  */
 
 #pragma once
-#include "../../apps/App.h"
-#include <TFT_eSPI.h>
+#include "../App.h"
+#include "../AppId.h"
+#include "../../hal/interfaces/IDisplay.h"
+#include "../../hal/interfaces/IPower.h"
+
+#include "../interfaces/IAppNavigator.h"
 
 class InfoApp : public App {
 public:
-    using App::App; 
+    InfoApp(IDisplay* display, IPower* power, IAppNavigator* appNavigator);
 
     void start() override;
     void update() override;
@@ -18,10 +23,15 @@ public:
     void onInput(ControlEvent ev, EventType type) override;
 
 private:
+    // Injected subsystems (non-owning).
+    IDisplay*   display;
+    IPower*     power;
+    IAppNavigator* appManager;
+
     unsigned long lastUpdate = 0;
 
     // Firmware version (single source of truth, displayed in InfoApp)
-    const char* FIRMWARE_VERSION = "V1.2";
+    const char* FIRMWARE_VERSION = "V1.3";
 
     void drawScreen();
 };

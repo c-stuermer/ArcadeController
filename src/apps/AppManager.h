@@ -1,60 +1,47 @@
 /**
- * Project: Arcade Controller V1.2
+ * Project: Arcade Controller V1.3
  * File: apps/AppManager.h
- * Description: Owns the InputHandler and all App instances. Routes hardware
- *              input to the currently active App and handles app switching.
  */
 
 #pragma once
 
+#include <map>
+
 #include "App.h"
 #include "AppId.h"
+#include "interfaces/IAppNavigator.h"
 #include "../hal/InputHandler.h"
 
-#include "MenuApp/MenuApp.h"
-#include "BluetoothApp/BluetoothApp.h"
-#include "InfoApp/InfoApp.h"
-#include "InputMonitorApp/InputMonitorApp.h"
-#include "SpaceInvadersApp/SpaceInvadersApp.h"
-
-class ISystem;
-
-class AppManager {
-private:
-    InputHandler input;
-
-    // App instances - constructed once, live as long as AppManager.
-    MenuApp          menuApp;
-    BluetoothApp     bluetoothApp;
-    InfoApp          infoApp;
-    InputMonitorApp  inputMonitorApp;
-    SpaceInvadersApp spaceInvadersApp;
-
-    App* currentApp = nullptr;
-
+// Inherit from IAppNavigator to achieve loose coupling with the app layer
+class AppManager : public IAppNavigator {
 public:
-    explicit AppManager(ISystem* sys)
-        : menuApp(sys),
-          bluetoothApp(sys),
-          infoApp(sys),
-          inputMonitorApp(sys),
-          spaceInvadersApp(sys) {}
+    explicit AppManager(InputHandler& handler) : input(handler) {}
 
     void begin();
     void update();
 
-    // --- App switching ---
+    // System/Composition Root API
+    // label is optional: pass a string to show the app in the auto-generated
+    // APPLICATIONS menu, or omit/nullptr to keep it out of the menu.
+    void registerApp(AppId id, App* app, const char* label = nullptr);
+    void setDefaultApp(AppId id);
     void startApp(AppId id);
 
-    // Direct accessor for the boot sequence in ArcadeController.
-    BluetoothApp* getBluetoothApp() { return &bluetoothApp; }
+    // Interface Implementation (App Layer API)
+    void closeApp() override;
+    void switchApp(AppId id) override;
 
-    // Exposes the InputHandler for apps that poll input directly
-    // (InputMonitorApp, SpaceInvadersApp). Event delivery still happens
-    // through the registered onEvent callback.
     InputHandler* getInput() { return &input; }
 
+    // Read-only access to the registry for the menu auto-generation loop.
+    const std::map<AppId, AppEntry>& getRegistry() const override { return registry; }
+
 private:
+    InputHandler&              input;     // non-owning — constructed and owned by main.cpp
+    std::map<AppId, AppEntry>  registry;
+    App* currentApp = nullptr;
+    App* defaultApp = nullptr;
+
     App* resolveApp(AppId id);
     void handleInput(ControlEvent ev, EventType type);
 };

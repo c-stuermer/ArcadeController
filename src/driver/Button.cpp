@@ -1,19 +1,15 @@
 /**
- * Project: Arcade Controller V1.2
+ * Project: Arcade Controller V1.3
  * File: Button.cpp
  * Description: Implementation of eager-press debounce logic.
  */
 
 #include "Button.h"
 
-Button::Button(PinType type,
-               uint8_t pin,
-               ControlEvent eventId,
+Button::Button(ControlEvent eventId,
                unsigned long debounceMs,
                unsigned long releaseHoldoffMs)
-    : type(type),
-      pin(pin),
-      eventId(eventId),
+    : eventId(eventId),
       debounceDelay(debounceMs),
       releaseHoldoff(releaseHoldoffMs) {}
 

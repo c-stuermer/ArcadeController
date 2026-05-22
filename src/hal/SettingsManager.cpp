@@ -1,7 +1,9 @@
 /**
- * Project: Arcade Controller V1.2
+ * Project: Arcade Controller V1.3
  * File: SettingsManager.cpp
- * Description: Implementation of persistent settings logic.
+ * Description: Implementation of persistent settings logic. Cross-cutting
+ *              setters route through the observed IDisplay/ISound so a
+ *              single call updates flash AND hardware.
  */
 
 #include "SettingsManager.h"
@@ -20,11 +22,17 @@ void SettingsManager::begin() {
 void SettingsManager::setVolume(uint8_t level) {
     volume = level;
     prefs.putUChar("volume", volume);
+
+    // Apply immediately so the user hears the change without a reboot.
+    if (sound) sound->setVolume(level);
 }
 
 void SettingsManager::setBrightness(uint8_t level) {
     brightness = level;
     prefs.putUChar("brightness", brightness);
+
+    // Apply immediately so the user sees the change without a reboot.
+    if (display) display->setBrightness(level);
 }
 
 void SettingsManager::setBootMode(uint8_t mode) {

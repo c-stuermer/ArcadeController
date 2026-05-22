@@ -1,21 +1,22 @@
 /**
- * Project: Arcade Controller V1.2
+ * Project: Arcade Controller V1.3
  * File: InfoApp.cpp
  * Description: Implementation of the system information screen.
  */
 
 #include "InfoApp.h"
-#include "../ISystem.h"
-#include "../AppManager.h"
 #include "../../config/Colors.h"
-#include "../../hal/DisplayManager.h"
-#include "../../hal/PowerManager.h"
 #include <esp_mac.h>
+
+InfoApp::InfoApp(IDisplay* display, IPower* power, IAppNavigator* appNavigator)
+    : App(),
+      display(display),
+      power(power),
+      appManager(appNavigator) {}
 
 void InfoApp::start() {
     Serial.println("[APP] InfoApp starting...");
-    //clear screen, draw screen first time, reset update interval
-    system->getDisplay()->getGfx()->fillScreen(Colors::BLACK);
+    display->clear();
     drawScreen();
     lastUpdate = millis();
 }
@@ -35,15 +36,11 @@ void InfoApp::update() {
 void InfoApp::onInput(ControlEvent ev, EventType type) {
     // Exit the app on ANY button press
     if (type == EventType::PRESSED) {
-        system->getAppManager()->startApp(AppId::Menu);
+        appManager->switchApp(AppId::Menu);
     }
 }
 
 void InfoApp::drawScreen() {
-    auto* disp  = system->getDisplay();
-    auto* gfx   = disp->getGfx();
-    auto* power = system->getPower();
-
     // Alignment / layout
     const int leftCol  = 10;
     const int rightCol = 80;
@@ -51,28 +48,21 @@ void InfoApp::drawScreen() {
     int       y        = 26;
 
     // Wipe the content area below the header, then redraw header.
-    gfx->fillRect(0, 14, 160, 114, Colors::BLACK);
-    disp->drawHeader("SYSTEM INFO");
-
-    gfx->setTextSize(1);
+    display->fillRect(0, 14, 160, 114, Colors::BLACK);
+    display->drawHeader("SYSTEM INFO");
 
     // --- SOFTWARE ---
-    gfx->setTextColor(Colors::WHITE);
-    gfx->drawString(FIRMWARE_VERSION, rightCol, y);
+    display->drawText(rightCol, y, FIRMWARE_VERSION, Colors::WHITE);
     y += step;
 
     // --- HARDWARE ---
     y += 4;
-    gfx->setTextColor(Colors::GREY);
-    gfx->drawString("CPU FREQ:", leftCol, y);
-    gfx->setTextColor(Colors::GREEN);
-    gfx->drawString(String(ESP.getCpuFreqMHz()) + " MHz", rightCol, y);
+    display->drawText(leftCol,  y, "CPU FREQ:",                            Colors::GREY);
+    display->drawText(rightCol, y, String(ESP.getCpuFreqMHz()) + " MHz",   Colors::GREEN);
     y += step;
 
-    gfx->setTextColor(Colors::GREY);
-    gfx->drawString("FREE RAM:", leftCol, y);
-    gfx->setTextColor(Colors::YELLOW);
-    gfx->drawString(String(ESP.getFreeHeap() / 1024) + " KB", rightCol, y);
+    display->drawText(leftCol,  y, "FREE RAM:",                                Colors::GREY);
+    display->drawText(rightCol, y, String(ESP.getFreeHeap() / 1024) + " KB",   Colors::YELLOW);
     y += step;
 
     // --- BATTERY & POWER ---
@@ -80,17 +70,13 @@ void InfoApp::drawScreen() {
     const float voltage = power->getBatteryVoltage();
     const int   percent = power->getBatteryPercentage();
 
-    gfx->setTextColor(Colors::GREY);
-    gfx->drawString("BATT VOLT:", leftCol, y);
-    gfx->setTextColor(Colors::CYAN);
-    gfx->drawString(String(voltage, 2) + " V", rightCol, y);
+    display->drawText(leftCol,  y, "BATT VOLT:",                  Colors::GREY);
+    display->drawText(rightCol, y, String(voltage, 2) + " V",     Colors::CYAN);
     y += step;
 
-    gfx->setTextColor(Colors::GREY);
-    gfx->drawString("BATT %:", leftCol, y);
     const uint16_t battColor = (percent > 20) ? Colors::GREEN : Colors::RED;
-    gfx->setTextColor(battColor);
-    gfx->drawString(String(percent) + " %", rightCol, y);
+    display->drawText(leftCol,  y, "BATT %:",                  Colors::GREY);
+    display->drawText(rightCol, y, String(percent) + " %",     battColor);
     y += step;
 
     // --- LOCAL MAC ADDRESS (Bottom) ---
@@ -101,8 +87,6 @@ void InfoApp::drawScreen() {
     snprintf(macStr, sizeof(macStr), "%02X:%02X:%02X:%02X:%02X:%02X",
              mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 
-    gfx->setTextColor(Colors::GREY);
-    gfx->drawString("MAC:", leftCol, y);
-    gfx->setTextColor(Colors::WHITE);
-    gfx->drawString(macStr, rightCol - 30, y);
+    display->drawText(leftCol,      y, "MAC:",   Colors::GREY);
+    display->drawText(rightCol - 30, y, macStr,  Colors::WHITE);
 }

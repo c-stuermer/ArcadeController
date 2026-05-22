@@ -1,23 +1,24 @@
 /**
- * Project: Arcade Controller V1.2
+ * Project: Arcade Controller V1.3
  * File: apps/BluetoothApp/BluetoothApp.cpp
- * Description: Owns the gamepad transport (BLE-HID; Switch 2 planned) and
- *              provides the local Bluetooth UI / state machine that the
- *              V0.2 build had: IDLE -> PAIRING -> CONNECTED -> PAUSED.
  */
 
 #include "BluetoothApp.h"
-#include "../ISystem.h"
-#include "../AppManager.h"
-#include "../AppId.h"
+#include "../Interfaces/IAppNavigator.h"
 #include "../../config/Colors.h"
-#include "../../hal/SettingsManager.h"
-#include "../../hal/PowerManager.h"
-#include "../../hal/DisplayManager.h"
-#include "../../hal/InputHandler.h"
 #include <NimBLEDevice.h>
 
-BluetoothApp::BluetoothApp(ISystem* sys) : App(sys) {}
+BluetoothApp::BluetoothApp(IDisplay*   display,
+                           IPower*     power,
+                           ISetting*   settings,
+                           IInputH*    input,
+                           IAppNavigator* appNavigator)
+    : App(),
+      display(display),
+      power(power),
+      settings(settings),
+      input(input),
+      appNavigator(appNavigator) {}
 
 // --- Lifecycle --------------------------------------------------------------
 
@@ -26,7 +27,7 @@ void BluetoothApp::start() {
 
     // First entry: load persisted mode and bring up the adapter.
     if (!adapterInitialized) {
-        uint8_t raw  = system->getSettings()->getGamepadMode();
+        uint8_t raw  = settings->getGamepadMode();
         Mode    mode = (raw == static_cast<uint8_t>(Mode::SWITCH))
                          ? Mode::SWITCH
                          : Mode::BLE_HID;
@@ -34,7 +35,7 @@ void BluetoothApp::start() {
         adapterInitialized = true;
     }
 
-    // Determine entry state from current connection status (V0.2 behaviour).
+    // Determine entry state from current connection status.
     if (active && active->isConnected()) {
         currentState = BtState::CONNECTED;
     } else {
@@ -45,12 +46,9 @@ void BluetoothApp::start() {
 }
 
 void BluetoothApp::update() {
-    auto input = system->getInput();
-    auto disp  = system->getDisplay();
-
     // Periodic battery push to the active gamepad
     if (active && (millis() - lastBatterySync >= BATTERY_SYNC_MS || lastBatterySync == 0)) {
-        active->setBatteryLevel(system->getPower()->getBatteryPercentage());
+        active->setBatteryLevel(power->getBatteryPercentage());
         lastBatterySync = millis();
     }
 
@@ -72,11 +70,10 @@ void BluetoothApp::update() {
     if (durSel > 0 && durL2 > 0 && durR2 > 0) {
         unsigned long comboTime = min(durSel, min(durL2, durR2));
 
-        // Draw progress bar (Red for "Exit")
-        disp->drawProgressBar(comboTime, 2000, Colors::RED);
+        display->drawProgressBar(comboTime, 2000, Colors::RED);
 
         if (comboTime >= 2000) {
-            disp->clearProgressBar();
+            display->clearProgressBar();
 
             // Virtually release combo buttons so the host doesn't see them
             // as stuck after we leave passthrough.
@@ -86,18 +83,20 @@ void BluetoothApp::update() {
                 active->release(ControlEvent::BTN_R2);
             }
 
-            // Wake hardware if it was killed by stealth boot
-            if (disp->getBrightness() == 0) {
+            // Wake hardware if it was killed by stealth boot. settings->setX
+            // persists AND applies (observer) — passing the already-saved
+            // value re-applies it to the hardware without changing flash.
+            if (display->getBrightness() == 0) {
                 Serial.println("[BLUETOOTH] Waking up hardware...");
-                system->setBrightness(system->getSettings()->getBrightness());
-                system->setVolume(system->getSettings()->getVolume());
+                settings->setBrightness(settings->getBrightness());
+                settings->setVolume(settings->getVolume());
             }
 
             Serial.println("[BLUETOOTH] Escaping to PAUSED menu...");
             currentState = BtState::PAUSED;
         }
     } else {
-        disp->clearProgressBar();
+        display->clearProgressBar();
     }
 
     // 3. Render only on state change (prevents flicker)
@@ -110,8 +109,7 @@ void BluetoothApp::update() {
 void BluetoothApp::stop() {
     // Intentionally NOT tearing down the adapter so the gamepad keeps
     // working when the user switches to another app (e.g. the menu).
-    // Just clear the progress bar so it doesn't bleed into the next app.
-    system->getDisplay()->clearProgressBar();
+    display->clearProgressBar();
 }
 
 void BluetoothApp::onInput(ControlEvent ev, EventType type) {
@@ -132,7 +130,7 @@ void BluetoothApp::onInput(ControlEvent ev, EventType type) {
         // --- IDLE: BT sleeping, waiting for user to start pairing ---
         case BtState::IDLE:
             if (ev == ControlEvent::BTN_B) {
-                system->getAppManager()->startApp(AppId::Menu);
+                appNavigator->closeApp();
             } else if (ev == ControlEvent::BTN_A) {
                 currentState = BtState::PAIRING;
                 active->startAdvertising();
@@ -160,7 +158,7 @@ void BluetoothApp::onInput(ControlEvent ev, EventType type) {
                 currentState = BtState::IDLE;
             } else if (ev == ControlEvent::BTN_START) {
                 // Quit to main menu but stay connected in the background
-                system->getAppManager()->startApp(AppId::Menu);
+                appNavigator->closeApp();
             }
             break;
     }
@@ -174,7 +172,7 @@ void BluetoothApp::switchMode(Mode newMode) {
     lastDrawnState = BtState::PAUSED;  // force redraw
 }
 
-IGamepadOutput* BluetoothApp::adapterFor(Mode mode) {
+GamepadOutput* BluetoothApp::adapterFor(Mode mode) {
     switch (mode) {
         case Mode::BLE_HID: return &bleAdapter;
         case Mode::SWITCH:  /* return &switchAdapter; */ return &bleAdapter; // fallback until Switch2 is implemented
@@ -196,29 +194,24 @@ void BluetoothApp::applyMode(Mode mode, bool persist) {
     active->startAdvertising();
 
     // Push current battery state immediately so the host shows it
-    active->setBatteryLevel(system->getPower()->getBatteryPercentage());
+    active->setBatteryLevel(power->getBatteryPercentage());
     lastBatterySync = millis();
 
     if (persist) {
-        system->getSettings()->setGamepadMode(static_cast<uint8_t>(mode));
+        settings->setGamepadMode(static_cast<uint8_t>(mode));
     }
 }
 
 // --- UI ---------------------------------------------------------------------
 
 void BluetoothApp::drawScreen() {
-    auto disp = system->getDisplay();
-    auto gfx  = disp->getGfx();
+    display->clear();
+    display->drawHeader("BLUETOOTH");
 
-    gfx->fillScreen(Colors::BLACK);
-    disp->drawHeader("BLUETOOTH");
-
-    // UI Layout Variables (no horizontal lines, V0.2 spacing)
+    // UI Layout
     const int titleY      = 26;
     const int textY       = 50;
     const int lineSpacing = 18;
-
-    gfx->setTextSize(1);
 
     // Peer MAC is shown in both CONNECTED and PAUSED. drawScreen() is only
     // called on state change, so reading once up-front (even when unused) is
@@ -235,56 +228,34 @@ void BluetoothApp::drawScreen() {
 
         // --- IDLE: standby screen with pairing / bond-clear hints ---
         case BtState::IDLE:
-            gfx->setTextColor(Colors::GREY);
-            gfx->drawString("STANDBY", 10, titleY);
-
-            gfx->setTextColor(Colors::WHITE);
-            gfx->drawString("[A] Connect / Search", 10, textY);
-            gfx->drawString("[X] Clear old Bonds",  10, textY + lineSpacing);
-
-            gfx->setTextColor(Colors::RED);  // Red exit hint
-            gfx->drawString("[B] Exit to Menu", 10, 105);
+            display->drawText(10, titleY,             "STANDBY",              Colors::GREY);
+            display->drawText(10, textY,              "[A] Connect / Search", Colors::WHITE);
+            display->drawText(10, textY + lineSpacing,"[X] Clear old Bonds",  Colors::WHITE);
+            display->drawText(10, 105,                "[B] Exit to Menu",     Colors::RED);
             break;
 
         // --- PAIRING: searching for a host ---
         case BtState::PAIRING:
-            gfx->setTextColor(Colors::YELLOW);
-            gfx->drawString("SEARCHING...", 10, titleY);
-
-            gfx->setTextColor(Colors::WHITE);
-            gfx->drawString("Make sure Pi/PC",    10, textY);
-            gfx->drawString("is ready to pair.",  10, textY + 12);
-
-            gfx->setTextColor(Colors::GREY);
-            gfx->drawString("[B] Cancel", 10, 105);
+            display->drawText(10, titleY,    "SEARCHING...",     Colors::YELLOW);
+            display->drawText(10, textY,     "Make sure Pi/PC",  Colors::WHITE);
+            display->drawText(10, textY + 12,"is ready to pair.",Colors::WHITE);
+            display->drawText(10, 105,       "[B] Cancel",       Colors::GREY);
             break;
 
         // --- CONNECTED: passthrough active, show host + exit combo ---
         case BtState::CONNECTED:
-            gfx->setTextColor(Colors::GREEN);
-            gfx->drawString("CONNECTED", 10, titleY);
-
-            gfx->setTextColor(Colors::WHITE);
-            gfx->drawString("HOST: " + peerMac, 10, textY);
-
-            gfx->setTextColor(Colors::RED);
-            gfx->drawString("[SELECT] + [L2] + [R2]", 10, 105);
+            display->drawText(10, titleY, "CONNECTED",                Colors::GREEN);
+            display->drawText(10, textY,  "HOST: " + peerMac,         Colors::WHITE);
+            display->drawText(10, 105,    "[SELECT] + [L2] + [R2]",   Colors::RED);
             break;
 
         // --- PAUSED: overlay menu while still connected ---
         case BtState::PAUSED:
-            gfx->setTextColor(Colors::RED);
-            gfx->drawString("SYSTEM PAUSED", 10, titleY);
-
-            gfx->setTextColor(Colors::WHITE);
-            gfx->drawString("HOST: " + peerMac, 10, textY);
-
-            gfx->setTextColor(Colors::GREEN);  // Green for Resume
-            gfx->drawString("[B] Resume Game",     10, textY + lineSpacing + 4);
-
-            gfx->setTextColor(Colors::WHITE);
-            gfx->drawString("[A] Disconnect",      10, textY + (lineSpacing * 2) + 4);
-            gfx->drawString("[START] Quit to Menu", 10, textY + (lineSpacing * 3) + 4);
+            display->drawText(10, titleY,                        "SYSTEM PAUSED",       Colors::RED);
+            display->drawText(10, textY,                         "HOST: " + peerMac,    Colors::WHITE);
+            display->drawText(10, textY + lineSpacing + 4,       "[B] Resume Game",     Colors::GREEN);
+            display->drawText(10, textY + (lineSpacing * 2) + 4, "[A] Disconnect",      Colors::WHITE);
+            display->drawText(10, textY + (lineSpacing * 3) + 4, "[START] Quit to Menu",Colors::WHITE);
             break;
     }
 }

@@ -1,7 +1,9 @@
 /**
- * Project: Arcade Controller V1.2
+ * Project: Arcade Controller V1.3
  * File: DisplayManager.h
  * Description: Hardware abstraction for the TFT display using the high-speed TFT_eSPI library.
+ *              Implements the IDisplay interface so apps can depend on the
+ *              abstract contract rather than this concrete class.
  */
 
 #pragma once
@@ -9,41 +11,62 @@
 #include <TFT_eSPI.h>
 #include "../config/Config.h"
 #include "../config/Colors.h"
+#include "interfaces/IDisplay.h"
 
-class DisplayManager {
+class DisplayManager : public IDisplay {
 public:
     DisplayManager() = default;
 
     // Initializes the display hardware
-    void begin();
+    void begin() override;
 
     // Clears the entire screen (fills with black)
-    void clear();
+    void clear() override;
 
-    // Returns the raw TFT_eSPI pointer for advanced drawing operations
+    // Returns the raw TFT_eSPI pointer for advanced drawing operations.
+    // Intentionally NOT part of the IDisplay interface (V1.3): apps that
+    // depend only on IDisplay cannot reach the rendering backend. Other
+    // apps that still hold a concrete DisplayManager* (via ISystem)
+    // continue to use this until they are ported to the interface.
     TFT_eSPI* getGfx() { return &screen; }
 
     // --- UI Elements ---
 
     // Draws the top status bar including the title and battery indicator
-    void drawHeader(const String& title);
+    void drawHeader(const String& title) override;
 
     // Draws a progress bar at the bottom of the screen
-    void drawProgressBar(unsigned long current, unsigned long maxVal, uint16_t color = Colors::WHITE);
+    void drawProgressBar(unsigned long current, unsigned long maxVal, uint16_t color = Colors::WHITE) override;
 
     // Clears the progress bar area
-    void clearProgressBar();
+    void clearProgressBar() override;
+
+    // --- Primitive drawing (V1.3) ---
+
+    // Draws a single text run at (x, y) in the given color and text size.
+    // Background is left untouched - clear the area first if needed.
+    void drawText(int x, int y, const String& text, uint16_t color, uint8_t size = 1) override;
+
+    // Fills an axis-aligned rectangle with a solid color.
+    void fillRect(int x, int y, int w, int h, uint16_t color) override;
+
+    // Circle outline / filled circle.
+    void drawCircle(int x, int y, int r, uint16_t color) override;
+    void fillCircle(int x, int y, int r, uint16_t color) override;
+
+    // Straight line between two points.
+    void drawLine(int x0, int y0, int x1, int y1, uint16_t color) override;
 
     // --- State Setters & Getters ---
 
     // Sets the backlight brightness (0-100)
-    void setBrightness(uint8_t level);
+    void setBrightness(uint8_t level) override;
 
     // Updates the internal battery state used by the UI elements
-    void setBatteryLevel(int level);
+    void setBatteryLevel(int level) override;
 
     // Returns the current brightness level
-    uint8_t getBrightness() const { return currentBrightness; }
+    uint8_t getBrightness() const override { return currentBrightness; }
 
 private:
     // --- Screen geometry (160x128 landscape) ---

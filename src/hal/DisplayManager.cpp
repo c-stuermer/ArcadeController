@@ -1,5 +1,5 @@
 /**
- * Project: Arcade Controller V1.2
+ * Project: Arcade Controller V1.3
  * File: DisplayManager.cpp
  * Description: Implementation of display routines and UI elements.
  */
@@ -78,4 +78,29 @@ void DisplayManager::drawProgressBar(unsigned long current, unsigned long maxVal
 
 void DisplayManager::clearProgressBar() {
     screen.fillRect(0, PROGRESS_Y, SCREEN_W, PROGRESS_H, Colors::BLACK);
+}
+
+// --- Primitive drawing (V1.3) ----------------------------------------------
+
+void DisplayManager::drawText(int x, int y, const String& text, uint16_t color, uint8_t size) {
+    screen.setTextSize(size);
+    screen.setTextColor(color);
+    screen.setCursor(x, y);
+    screen.print(text);
+}
+
+void DisplayManager::fillRect(int x, int y, int w, int h, uint16_t color) {
+    screen.fillRect(x, y, w, h, color);
+}
+
+void DisplayManager::drawCircle(int x, int y, int r, uint16_t color) {
+    screen.drawCircle(x, y, r, color);
+}
+
+void DisplayManager::fillCircle(int x, int y, int r, uint16_t color) {
+    screen.fillCircle(x, y, r, color);
+}
+
+void DisplayManager::drawLine(int x0, int y0, int x1, int y1, uint16_t color) {
+    screen.drawLine(x0, y0, x1, y1, color);
 }

@@ -1,5 +1,5 @@
 /**
- * Project: Arcade Controller V1.2
+ * Project: Arcade Controller V1.3
  * File: config/Colors.h
  * Description: Central RGB565 color palette. Every UI module (HAL display
  *              and apps) consults this single source instead of sprinkling
