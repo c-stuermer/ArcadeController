@@ -103,6 +103,7 @@ void BluetoothApp::update() {
     if (currentState != lastDrawnState) {
         drawScreen();
         lastDrawnState = currentState;
+        display->flush();
     }
 }
 

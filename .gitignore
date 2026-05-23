@@ -33,6 +33,9 @@ ehthumbs.db
 Thumbs.db
 Desktop.ini
 
+# --- Work in progress (not ready for release) ---
+src/apps/FroggerApp/
+
 # --- Project Documentation (kept locally, not published) ---
 *.docx
 *.pdf

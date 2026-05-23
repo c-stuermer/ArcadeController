@@ -10,46 +10,51 @@ void DisplayManager::begin() {
     Serial.println("[DISPLAY] Init TFT_eSPI...");
 
     screen.begin();
+    screen.setRotation(3);   // Landscape
 
-    // Orientation: 3 = Landscape
-    screen.setRotation(3);
+    // Allocate the full-screen off-screen buffer.
+    // All subsequent draw calls target this sprite; flush() commits it.
+    buffer.createSprite(SCREEN_W, SCREEN_H);
+    buffer.setTextWrap(false);
+    buffer.setTextSize(1);
+    buffer.setTextColor(Colors::WHITE);
 
-    // Set initial text color (White) and size
-    screen.setTextSize(1);
-    screen.setTextColor(Colors::WHITE);
+    Serial.println("[DISPLAY] Render buffer allocated (40KB)");
 }
 
 void DisplayManager::clear() {
-    screen.fillScreen(Colors::BLACK);
+    buffer.fillSprite(Colors::BLACK);
 }
 
 void DisplayManager::drawHeader(const String& title) {
-    screen.setTextColor(Colors::WHITE, Colors::BLACK);
-    screen.setTextSize(1);
+    buffer.setTextColor(Colors::WHITE, Colors::BLACK);
+    buffer.setTextSize(1);
 
-    screen.setCursor(2, 2);
-    screen.print(title);
+    buffer.setCursor(2, 2);
+    buffer.print(title);
 
     // Horizontal separator line just below the title
-    screen.drawFastHLine(0, HEADER_H, SCREEN_W, Colors::WHITE);
+    buffer.drawFastHLine(0, HEADER_H, SCREEN_W, Colors::WHITE);
 
     // --- Battery indicator (outline + cap + fill) ---
-    screen.drawRect(BATT_X, BATT_Y, BATT_W, BATT_H, Colors::WHITE);
-    screen.drawFastVLine(BATT_X + BATT_W, BATT_Y + 2, 4, Colors::WHITE);
+    buffer.drawRect(BATT_X, BATT_Y, BATT_W, BATT_H, Colors::WHITE);
+    buffer.drawFastVLine(BATT_X + BATT_W, BATT_Y + 2, 4, Colors::WHITE);
 
     const int maxWidth  = BATT_W - 2;
     const int fillWidth = map(currentBattery, 0, 100, 0, maxWidth);
 
     const uint16_t fillColor = (currentBattery > BATT_LOW_PCT) ? Colors::GREEN : Colors::RED;
 
-    // Filled portion (current charge)
     if (fillWidth > 0) {
-        screen.fillRect(BATT_X + 1, BATT_Y + 1, fillWidth, BATT_H - 2, fillColor);
+        buffer.fillRect(BATT_X + 1, BATT_Y + 1, fillWidth, BATT_H - 2, fillColor);
     }
-    // Remaining empty portion (clear so old levels don't bleed through)
     if (fillWidth < maxWidth) {
-        screen.fillRect(BATT_X + 1 + fillWidth, BATT_Y + 1, maxWidth - fillWidth, BATT_H - 2, Colors::BLACK);
+        buffer.fillRect(BATT_X + 1 + fillWidth, BATT_Y + 1, maxWidth - fillWidth, BATT_H - 2, Colors::BLACK);
     }
+}
+
+void DisplayManager::flush() {
+    buffer.pushSprite(0, 0);
 }
 
 void DisplayManager::setBrightness(uint8_t level) {
@@ -72,35 +77,43 @@ void DisplayManager::drawProgressBar(unsigned long current, unsigned long maxVal
     const int barWidth = (current * SCREEN_W) / maxVal;
 
     if (barWidth > 0) {
-        screen.fillRect(0, PROGRESS_Y, barWidth, PROGRESS_H, color);
+        buffer.fillRect(0, PROGRESS_Y, barWidth, PROGRESS_H, color);
     }
 }
 
 void DisplayManager::clearProgressBar() {
-    screen.fillRect(0, PROGRESS_Y, SCREEN_W, PROGRESS_H, Colors::BLACK);
+    buffer.fillRect(0, PROGRESS_Y, SCREEN_W, PROGRESS_H, Colors::BLACK);
 }
 
-// --- Primitive drawing (V1.3) ----------------------------------------------
+// --- Primitive drawing -----------------------------------------------------
 
 void DisplayManager::drawText(int x, int y, const String& text, uint16_t color, uint8_t size) {
-    screen.setTextSize(size);
-    screen.setTextColor(color);
-    screen.setCursor(x, y);
-    screen.print(text);
+    buffer.setTextSize(size);
+    buffer.setTextColor(color);
+    buffer.setCursor(x, y);
+    buffer.print(text);
 }
 
 void DisplayManager::fillRect(int x, int y, int w, int h, uint16_t color) {
-    screen.fillRect(x, y, w, h, color);
+    buffer.fillRect(x, y, w, h, color);
 }
 
 void DisplayManager::drawCircle(int x, int y, int r, uint16_t color) {
-    screen.drawCircle(x, y, r, color);
+    buffer.drawCircle(x, y, r, color);
 }
 
 void DisplayManager::fillCircle(int x, int y, int r, uint16_t color) {
-    screen.fillCircle(x, y, r, color);
+    buffer.fillCircle(x, y, r, color);
 }
 
 void DisplayManager::drawLine(int x0, int y0, int x1, int y1, uint16_t color) {
-    screen.drawLine(x0, y0, x1, y1, color);
+    buffer.drawLine(x0, y0, x1, y1, color);
+}
+
+void DisplayManager::drawBitmap(int x, int y, const uint8_t* bitmap, int w, int h, uint16_t color) {
+    buffer.drawBitmap(x, y, bitmap, w, h, color);
+}
+
+void DisplayManager::drawRect(int x, int y, int w, int h, uint16_t color) {
+    buffer.drawRect(x, y, w, h, color);
 }

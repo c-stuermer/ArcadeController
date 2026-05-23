@@ -28,6 +28,7 @@ void InputMonitorApp::start() {
 
     // Static text for exit combo
     display->drawText(10, 112, "[SELECT] + [L2] + [R2]", Colors::RED);
+    display->flush();
 
     lastState = ALL_INPUTS_DIRTY;   // Forces a full redraw on first update
 }
@@ -114,6 +115,8 @@ void InputMonitorApp::update() {
         // Clear the bar if any of the three buttons is released
         display->clearProgressBar();
     }
+
+    display->flush();
 }
 
 void InputMonitorApp::drawArcadeBtn(int x, int y, int r, uint16_t color, bool pressed) {

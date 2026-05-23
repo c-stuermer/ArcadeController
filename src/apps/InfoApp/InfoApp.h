@@ -31,7 +31,7 @@ private:
     unsigned long lastUpdate = 0;
 
     // Firmware version (single source of truth, displayed in InfoApp)
-    const char* FIRMWARE_VERSION = "V1.3";
+    const char* FIRMWARE_VERSION = "V1.4";
 
     void drawScreen();
 };

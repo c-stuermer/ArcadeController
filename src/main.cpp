@@ -1,5 +1,5 @@
 /**
- * Project: Arcade Controller V1.3
+ * Project: Arcade Controller V1.4
  * File: main.cpp
  * Description: Composition root. Constructs all subsystems and apps
  *              and wires them together.
@@ -18,6 +18,9 @@
 #include <apps/InfoApp/InfoApp.h>
 #include <apps/InputMonitorApp/InputMonitorApp.h>
 #include <apps/BluetoothApp/BluetoothApp.h>
+#include <apps/SpaceInvadersApp/SpaceInvadersApp.h>
+#include <apps/SnakeApp/SnakeApp.h>
+// FroggerApp — work in progress, not included in this release
 
 
 // --- systemManager + AppManager ------------------------------------------------
@@ -49,6 +52,18 @@ static BluetoothApp bluetooth(
     appManager.getInput(),
     &appManager);
 
+static SpaceInvadersApp spaceInvaders(
+    systemManager.getDisplay(),
+    systemManager.getSound(),
+    appManager.getInput(),
+    &appManager);
+
+static SnakeApp snake(
+    systemManager.getDisplay(),
+    systemManager.getSound(),
+    appManager.getInput(),
+    &appManager);
+
 void setup() {
     systemManager.begin();
 
@@ -56,6 +71,8 @@ void setup() {
     appManager.registerApp(AppId::Info,         &info);
     appManager.registerApp(AppId::InputMonitor, &inputMonitor, "INPUT MONITOR");
     appManager.registerApp(AppId::Bluetooth,    &bluetooth,    "BLUETOOTH");
+    appManager.registerApp(AppId::SpaceInvaders,&spaceInvaders,"SPACE INVADERS");
+    appManager.registerApp(AppId::Snake,        &snake,        "SNAKE");
     appManager.setDefaultApp(AppId::Menu);
 
     appManager.begin();

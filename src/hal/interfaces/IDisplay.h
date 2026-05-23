@@ -35,8 +35,18 @@ public:
     virtual void fillCircle(int x, int y, int r, uint16_t color)                                        = 0;
     virtual void drawLine(int x0, int y0, int x1, int y1, uint16_t color)                               = 0;
 
+    // Draws a 1-bit PROGMEM bitmap at (x, y). Zero-bits are transparent.
+    virtual void drawBitmap(int x, int y, const uint8_t* bitmap, int w, int h, uint16_t color)          = 0;
+
+    // Draws a rectangle outline (unfilled).
+    virtual void drawRect(int x, int y, int w, int h, uint16_t color)                                   = 0;
+
     // --- State setters & getters ---
     virtual void setBrightness(uint8_t level)                                                           = 0;
     virtual void setBatteryLevel(int level)                                                             = 0;
     virtual uint8_t getBrightness() const                                                               = 0;
+
+    // Commits the off-screen buffer to the physical display in one SPI transfer.
+    // Call once at the end of every draw cycle to present the completed frame.
+    virtual void flush()                                                                                 = 0;
 };

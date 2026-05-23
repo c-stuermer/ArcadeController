@@ -13,6 +13,10 @@
 #include "../config/Colors.h"
 #include "interfaces/IDisplay.h"
 
+// TFT_eSprite is TFT_eSPI's off-screen RAM buffer. All draw calls target the
+// sprite; flush() pushes the completed frame to the physical display in one
+// SPI transfer, eliminating per-primitive flicker.
+
 class DisplayManager : public IDisplay {
 public:
     DisplayManager() = default;
@@ -57,6 +61,12 @@ public:
     // Straight line between two points.
     void drawLine(int x0, int y0, int x1, int y1, uint16_t color) override;
 
+    // 1-bit PROGMEM bitmap (transparent background).
+    void drawBitmap(int x, int y, const uint8_t* bitmap, int w, int h, uint16_t color) override;
+
+    // Rectangle outline (unfilled).
+    void drawRect(int x, int y, int w, int h, uint16_t color) override;
+
     // --- State Setters & Getters ---
 
     // Sets the backlight brightness (0-100)
@@ -68,9 +78,13 @@ public:
     // Returns the current brightness level
     uint8_t getBrightness() const override { return currentBrightness; }
 
+    // Pushes the completed off-screen frame to the physical display
+    void flush() override;
+
 private:
     // --- Screen geometry (160x128 landscape) ---
     static constexpr int SCREEN_W       = 160;
+    static constexpr int SCREEN_H       = 128;
     static constexpr int HEADER_H       = 12;
     static constexpr int PROGRESS_Y     = 126;
     static constexpr int PROGRESS_H     = 2;
@@ -82,9 +96,14 @@ private:
     static constexpr int BATT_H         = 8;
     static constexpr int BATT_LOW_PCT   = 20;   // <= 20% draws red instead of green
 
-    // The TFT_eSPI object is instantiated directly (member, no dynamic alloc).
+    // The TFT_eSPI object drives the physical display over SPI.
     // Pins and chip config are pulled from the library's User_Setup.h.
-    TFT_eSPI screen;
+    TFT_eSPI   screen;
+
+    // Full-screen off-screen buffer (160×128, 16-bit colour = 40 KB).
+    // Initialised in begin() via createSprite(). All draw calls target
+    // this sprite; flush() commits it to the screen with pushSprite().
+    TFT_eSprite buffer { &screen };
 
     uint8_t currentBrightness = 100;
     int     currentBattery    = 0;

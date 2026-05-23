@@ -89,4 +89,6 @@ void InfoApp::drawScreen() {
 
     display->drawText(leftCol,      y, "MAC:",   Colors::GREY);
     display->drawText(rightCol - 30, y, macStr,  Colors::WHITE);
+
+    display->flush();
 }

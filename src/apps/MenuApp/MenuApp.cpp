@@ -117,6 +117,8 @@ void MenuApp::update() {
         drawMenu();
         menuDirty = false;
     }
+
+    display->flush();
 }
 
 void MenuApp::drawMenu() {
