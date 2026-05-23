@@ -6,9 +6,11 @@
 
 A modular, C++ based firmware for a custom-built Arcade Controller. Powered by an ESP32 with an MCP23017 I/O expander.
 
+![Arcade Controller](docs/final_product.jpg)
+
 > **V1.4 — MINI-GAME EXPANSION + ZERO-FLICKER RENDERING**
 >
-> Two new mini-games (Space Invaders, Snake) added to the catalogue. The central rendering change that makes them viable: `DisplayManager` now wraps a `TFT_eSprite` double-buffer. Every app calls `display->clear()`, issues all draw primitives into the sprite in RAM, then calls `display->flush()` — a single `pushSprite()` that transfers the finished frame over SPI in one shot. The display hardware never sees a partially-drawn frame, eliminating flicker entirely regardless of draw complexity. Measured input-to-pixel latency: 0–1 ms. High scores are persisted in NVS via `Preferences`.
+> Two new mini-games (Space Invaders expanded, Snake) added to the catalogue. The central rendering change that makes them viable: `DisplayManager` now wraps a `TFT_eSprite` double-buffer. Every app calls `display->clear()`, issues all draw primitives into the sprite in RAM, then calls `display->flush()` — a single `pushSprite()` that transfers the finished frame over SPI in one shot. The display hardware never sees a partially-drawn frame, eliminating flicker entirely regardless of draw complexity. Measured input-to-pixel latency: 0–1 ms. High scores are persisted in NVS via `Preferences`.
 >
 > **V1.3 — SOLID ARCHITECTURE OVERHAUL**
 >
@@ -36,12 +38,9 @@ A modular, C++ based firmware for a custom-built Arcade Controller. Powered by a
 >
 > Originally developed for a Cyber-Physical Systems module, V1.0 marks the first major release with a stable, decoupled architecture. Active development continues.
 
-![Arcade Controller](docs/final_product.jpg)
-
 ## Features
 
-* **Zero-Flicker Sprite Rendering:** `DisplayManager` maintains a `TFT_eSprite` buffer in RAM. Apps draw everything into the sprite via `IDisplay` primitives, then call `flush()` once — a single `pushSprite()` SPI transfer delivers the complete frame atomically. The display never sees a partially-drawn state. Measured input-to-pixel latency on the ST7735 at 27 MHz SPI: 0–1 ms.
-* **Arcade Mini-Games:** Space Invaders and Snake ship as fully playable mini-games. High scores are persisted in NVS via the ESP32 `Preferences` library. All games support `SELECT + L2 + R2` (2 s hold) to return to the main menu from any state.
+* **Arcade Mini-Games:** Three playable games ship with the firmware. *Space Invaders* — 3 lives, wave-based level progression, classic alien speed curve, UFO bonus (50–300 pts), NVS high score. *Snake* — level progression (20 pills → exit portal), four wall layouts cycling per level, animated title-screen demo snake, input-buffered direction queue, NVS high score. All games share the same `SELECT + L2 + R2` (2 s) combo to return to the main menu from any state.
 * **Eager-Press & Low-Latency Input:** The `Button` class uses eager-press debouncing — a press is registered immediately, while the release is delayed to ensure signal stability. A configurable post-release hold-off suppresses the pre-snap contact chatter observed on Sanwa-style joystick microswitches during slow releases.
 * **Split Input Signal Path:** Hardware reading (`InputReader` — GPIO, I2C, MCP23017) is cleanly separated from software processing (`InputHandler` — debounce, bitmap, event dispatch). Nothing above `InputReader` touches a GPIO or I2C register directly.
 * **Three-Pattern Input API:** `InputHandler` exposes the debounced input state in three complementary shapes — event callbacks for reactive consumers (`onEvent`), per-event polling for selective checks (`isPressed`, `getDuration`), and a compact 16-bit snapshot bitmap for bulk reads (`getDebouncedStates`). Each app picks the access pattern that fits its use case.
